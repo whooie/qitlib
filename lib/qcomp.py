@@ -9,46 +9,55 @@ import copy
 import random
 import pathlib
 
-def int_to_binstr(k: int, n: int):
+"""
+Provides machinery to construct and run quantum computing circuits using objects
+from lib.dirac. Supported gates are:
+    NOT, CNOT, PHASE, CPHASE, HADAMARD, SWAP, REVERSE, QFT, IQFT
+and are implemented all in terms of the H/P/CNOT universal gate set. Gates
+    XYMODN, CXYMODN
+are also supported for Shor's algorithm, but not implemented as H/P/CNOT gates.
+
+Also provides simple functions for converting between binary and decimal
+representations of numbers. Bitlists are in big-endian order, while bitstrs and
+qubit state labels are in small-endian order.
+"""
+### bitlists are in big-endian order, while bitstrs are in small-endian order
+
+def int_to_bitstr(k: int, n: int=None):
     b = str(bin(k))[2:]
-    return (n > 0)*((n - len(b)) * "0" + b)
+    _n = len(b) if n is None or n < 0 else n
+    return ((_n - len(b)) * "0" + b)[-_n:]
 
 def i2b(k: int, n: int):
-    return int_to_binstr(k, n)
+    return int_to_bitstr(k, n)
 
-def decstr_to_binstr(k: str, n: int):
-    return int_to_binstr(int(k), n)
-
-def binstr_to_int(B: str):
+def bitstr_to_int(B: str):
     return int(B, 2)
 
 def b2i(B: str):
-    return binstr_to_int(B)
-
-def binstr_to_decstr(B: str):
-    return str(binstr_to_int(B))
+    return bitstr_to_int(B)
 
 def qubit_to_int(S: BasisState):
-    return binstr_to_int(S.label)
+    return bitstr_to_int(S.label)
 
-def int_to_binlist(k: int, n: int):
-    return [int(b) for b in int_to_binstr(k, n)]
+def int_to_bitlist(k: int, n: int=None):
+    return [int(b) for b in int_to_bitstr(k, n)][::-1]
 
-def binlist_to_int(B: list):
-    return binstr_to_int("".join(str(b) for b in B))
+def bitlist_to_bitstr(B: list):
+    return "".join(str(b) for b in B[::-1])
 
-def binlist_to_binstr(B: list):
-    return "".join(str(b) for b in B)
+def bitlist_to_int(B: list):
+    return bitstr_to_int(bitlist_to_bitstr(B))
 
 def qubit_basis(n: int):
     """
     Generate a `Basis` for `n` qubit wires.
     """
     return Basis(*[
-        BasisState(decstr_to_binstr(str(k), n)) for k in range(2**n)
+        BasisState(decstr_to_bitstr(str(k), n)) for k in range(2**n)
     ])
 
-def hadamard_vecop(n: int, k: int):
+def _hadamard_vecop(n: int, k: int):
     _action = dict()
     for i in range(2**n):
         I = i2b(i, n)
@@ -60,23 +69,23 @@ def hadamard_vecop(n: int, k: int):
         })
     return VecOperator(_action, default_zero=False, is_ketop=True, scalar=1.0)
 
-def hadamard_mat(n: int, k: int, sparse: bool=False):
+def _hadamard_mat(n: int, k: int, sparse: bool=False):
     if n is None:
         raise ValueError("Wire count cannot be `None`")
     H = np.array([[1, 1], [1, -1]])/np.sqrt(2)
-    acc = sp.csr_matrix([[1]])
+    acc = sp._csr_matrix([[1]])
     for j in range(n):
         acc = sp.kron(acc, H if j == k else sp.eye(2), format="csr")
     return acc if sparse else acc.toarray()
 
-def hadamard_matop(n: int, k: int, sparse: bool=False):
+def _hadamard_matop(n: int, k: int, sparse: bool=False):
     return MatOperator(
-        hadamard_mat(n, k, sparse),
+        _hadamard_mat(n, k, sparse),
         qubit_basis(n),
         is_ketop=True
     )
 
-def hadamard_func(b: BasisState, k: int):
+def _hadamard_func(b: BasisState, k: int):
     l = b.label
     if l[k] == "0":
         return StateVec({
@@ -89,21 +98,25 @@ def hadamard_func(b: BasisState, k: int):
             BasisState(l[:k]+"1"+l[k+1:]): -1/np.sqrt(2)
         }, is_ket=True)
 
-def hadamard_funcop(n: int, k: int):
+def _hadamard_funcop(n: int, k: int):
     return FuncOperator(
-        lambda b: hadamard_func(b, k),
+        lambda b: _hadamard_func(b, k),
         is_ketop=True
     )
 
 def hadamard(n: int, k: int, kind: str="mat", **kwargs):
+    """
+    Construct a `kind`-`Operator` representing a Hadamard gate operating on the
+    `k`-th qubit (out of `n` total qubits).
+    """
     if kind == "vec":
-        return hadamard_vecop(n, k)
+        return _hadamard_vecop(n, k)
     elif kind == "mat":
-        return hadamard_matop(n, k, kwargs.get("sparse", False))
+        return _hadamard_matop(n, k, kwargs.get("sparse", False))
     elif kind == "func":
-        return hadamard_funcop(n, k)
+        return _hadamard_funcop(n, k)
 
-def phase_vecop(n: int, k: int, theta: float):
+def _phase_vecop(n: int, k: int, theta: float):
     _action = dict()
     for i in range(2**n):
         I = i2b(i, n)
@@ -115,44 +128,48 @@ def phase_vecop(n: int, k: int, theta: float):
         })
     return VecOperator(_action, default_zero=False, is_ketop=True, scalar=1.0)
 
-def phase_mat(n: int, k: int, theta: float, sparse: bool=False):
+def _phase_mat(n: int, k: int, theta: float, sparse: bool=False):
     if n is None:
         raise ValueError("Wire count cannot be `None`")
     P = np.array([[1, 0], [0, np.exp(1j*theta)]])
-    acc = sp.csr_matrix([[1]])
+    acc = sp._csr_matrix([[1]])
     for j in range(n):
         acc = sp.kron(acc, P if j == k else sp.eye(2), format="csr")
     return acc if sparse else acc.toarray()
 
-def phase_matop(n: int, k: int, theta: float, sparse: bool=False):
+def _phase_matop(n: int, k: int, theta: float, sparse: bool=False):
     return MatOperator(
-        phase_mat(n, k, theta, sparse),
+        _phase_mat(n, k, theta, sparse),
         qubit_basis(n),
         is_ketop=True
     )
 
-def phase_func(b: BasisState, k: int, theta: float):
+def _phase_func(b: BasisState, k: int, theta: float):
     l = b.label
     if l[k] == "1":
         return StateVec({b: np.exp(1.0j * theta)}, is_ket=True)
     else:
         return StateVec({b: 1.0 + 0.0j}, is_ket=True)
 
-def phase_funcop(n: int, k: int, theta: float):
+def _phase_funcop(n: int, k: int, theta: float):
     return FuncOperator(
-        lambda b: phase_func(b, k, theta),
+        lambda b: _phase_func(b, k, theta),
         is_ketop=True
     )
 
 def phase(n: int, k: int, theta: float, kind: str="mat", **kwargs):
+    """
+    Construct a `kind`-`Operator` representing a `theta`-phase gate operating on
+    the `k`-th qubit (out of `n` total qubits).
+    """
     if kind == "vec":
-        return phase_vecop(n, k, theta)
+        return _phase_vecop(n, k, theta)
     elif kind == "mat":
-        return phase_matop(n, k, theta, kwargs.get("sparse", False))
+        return _phase_matop(n, k, theta, kwargs.get("sparse", False))
     elif kind == "func":
-        return phase_funcop(n, k, theta)
+        return _phase_funcop(n, k, theta)
 
-def cnot_vecop(n: int, k1: int, k2: int):
+def _cnot_vecop(n: int, k1: int, k2: int):
     assert k1 != k2
     j1 = min(k1, k2)
     j2 = max(k1, k2)
@@ -166,27 +183,27 @@ def cnot_vecop(n: int, k1: int, k2: int):
         _action.update({s1: s2, s2: s1})
     return VecOperator(_action, default_zero=False, is_ketop=True, scalar=1.0)
 
-def cnot_mat(n: int, k1: int, k2: int, sparse: bool=False):
+def _cnot_mat(n: int, k1: int, k2: int, sparse: bool=False):
     assert k1 != k2
     if n is None:
         raise ValueError("Wire count cannot be `None`")
-    X = sp.csr_matrix((2**n, 2**n), dtype=complex) if sparse \
+    X = sp._csr_matrix((2**n, 2**n), dtype=complex) if sparse \
             else np.zeros((2**n, 2**n), dtype=complex)
     for k in range(2**n):
-        B = int_to_binlist(k, n)
+        B = int_to_bitlist(k, n)
         B[k2] = (B[k1] + B[k2]) % 2
-        b = binlist_to_int(B)
+        b = bitlist_to_int(B)
         X[b, k] = 1
     return X
 
-def cnot_matop(n: int, k1: int, k2: int, sparse: bool=False):
+def _cnot_matop(n: int, k1: int, k2: int, sparse: bool=False):
     return MatOperator(
-        cnot_mat(n, k1, k2, sparse),
+        _cnot_mat(n, k1, k2, sparse),
         qubit_basis(n),
         is_ketop=True
     )
 
-def cnot_func(b: BasisState, k1: int, k2: int):
+def _cnot_func(b: BasisState, k1: int, k2: int):
     l = b.label
     if l[k1] == "1":
         return StateVec({
@@ -196,24 +213,28 @@ def cnot_func(b: BasisState, k1: int, k2: int):
     else:
         return StateVec({b: 1.0 + 0.0j})
 
-def cnot_funcop(n: int, k1: int, k2: int):
+def _cnot_funcop(n: int, k1: int, k2: int):
     return FuncOperator(
-        lambda b: cnot_func(b, k1, k2),
+        lambda b: _cnot_func(b, k1, k2),
         is_ketop=True
     )
 
 def cnot(n: int, k1: int, k2: int, kind: str="mat", **kwargs):
+    """
+    Construct a `kind`-`Operator` representing a CNOT gate operating on the
+    `k1`-th qubit with the `k2`-th qubit as control (out of `n` total qubits).
+    """
     if kind == "vec":
-        return cnot_vecop(n, k1, k2)
+        return _cnot_vecop(n, k1, k2)
     elif kind == "mat":
-        return cnot_matop(n, k1, k2, kwargs.get("sparse", False))
+        return _cnot_matop(n, k1, k2, kwargs.get("sparse", False))
     elif kind == "func":
-        return cnot_funcop(n, k1, k2)
+        return _cnot_funcop(n, k1, k2)
 
-def qft_func(b: BasisState):
+def _qft_func(b: BasisState):
     n = len(b.label)
     N = 2**n
-    j = binstr_to_int(b.label)
+    j = bitstr_to_int(b.label)
     return StateVec({
         BasisState(i2b(k, n)): np.exp(2*np.pi*1j * j*k/N) / np.sqrt(N) \
                 for k in range(N)
@@ -264,7 +285,7 @@ def reverse_elements(k1: int, k2: int):
         ]
     return elements
 
-def xymodN_vecop(n: int, k: int, q: int, x: int, N: int):
+def _xymodN_vecop(n: int, k: int, q: int, x: int, N: int):
     assert 2**q >= N
     assert k + q - 1 < n
     _action = dict()
@@ -279,10 +300,10 @@ def xymodN_vecop(n: int, k: int, q: int, x: int, N: int):
         _action[s1] = StateVec({s2: 1.0 + 0.0j}, is_ket=True)
     return VecOperator(_action, default_zero=False, is_ketop=True, scalar=1.0)
 
-def xymodN_mat(n: int, k: int, q: int, x: int, N: int, sparse: bool=False):
+def _xymodN_mat(n: int, k: int, q: int, x: int, N: int, sparse: bool=False):
     assert 2**q >= N
     assert k + q - 1 < n
-    X = sp.csr_matrix((2**n, 2**n), dtype=complex) if sparse \
+    X = sp._csr_matrix((2**n, 2**n), dtype=complex) if sparse \
             else np.zeros((2**n, 2**n), dtype=complex)
     for i in range(2**n):
         I = i2b(i, n)
@@ -294,14 +315,14 @@ def xymodN_mat(n: int, k: int, q: int, x: int, N: int, sparse: bool=False):
         X[b2i(I[:k] + i2b(J, q) + I[k + q:]), i] = 1.0 + 0.0j
     return X
 
-def xymodN_matop(n: int, k: int, q: int, x: int, N: int, sparse: bool=False):
+def _xymodN_matop(n: int, k: int, q: int, x: int, N: int, sparse: bool=False):
     return MatOperator(
-        xymodN_mat(n, k, q, x, N, sparse),
+        _xymodN_mat(n, k, q, x, N, sparse),
         qubit_basis(n),
         is_ketop=True
     )
 
-def xymodN_func(b: BasisState, k: int, q: int, x: int, N: int):
+def _xymodN_func(b: BasisState, k: int, q: int, x: int, N: int):
     assert 2**q >= N
     I = b.label
     j = b2i(I[k:k + q])
@@ -314,22 +335,29 @@ def xymodN_func(b: BasisState, k: int, q: int, x: int, N: int):
     else:
         return StateVec({b: 1.0 + 0.0j}, is_ket=True)
 
-def xymodN_funcop(n: int, k: int, q: int, x: int, N: int):
+def _xymodN_funcop(n: int, k: int, q: int, x: int, N: int):
     assert k + q - 1 < n
     return FuncOperator(
-        lambda b: xymodN_func(b, k, q, x, N),
+        lambda b: _xymodN_func(b, k, q, x, N),
         is_ketop=True
     )
 
 def xymodN(n: int, k: int, q: int, x: int, N: int, kind: str="mat", **kwargs):
+    """
+    Construct a `kind`-`Operator` representing a gate operating on qubits `k`
+    through `k + q - 1` (out of `n` total qubits), performing the operation
+        x * y mod N
+    where `x` and `N` are fixed constants and `y` is the numerical value of the
+    specified qubits.
+    """
     if kind == "vec":
-        return xymodN_vecop(n, k, q, x, N)
+        return _xymodN_vecop(n, k, q, x, N)
     elif kind == "mat":
-        return xymodN_matop(n, k, q, x, N, kwargs.get("sparse", False))
+        return _xymodN_matop(n, k, q, x, N, kwargs.get("sparse", False))
     elif kind == "func":
-        return xymodN_funcop(n, k, q, x, N)
+        return _xymodN_funcop(n, k, q, x, N)
 
-def cxymodN_vecop(n: int, k1: int, k2: int, q: int, x: int, N: int):
+def _cxymodN_vecop(n: int, k1: int, k2: int, q: int, x: int, N: int):
     assert 2**q >= N
     assert k2 + q - 1 < n
     assert k1 < k2 or k1 >= k2 + q
@@ -345,12 +373,12 @@ def cxymodN_vecop(n: int, k1: int, k2: int, q: int, x: int, N: int):
         _action[s1] = StateVec({s2: 1.0 + 0.0j}, is_ket=True)
     return VecOperator(_action, default_zero=False, is_ketop=True, scalar=1.0)
 
-def cxymodN_mat(n: int, k1: int, k2: int, q: int, x: int, N: int,
+def _cxymodN_mat(n: int, k1: int, k2: int, q: int, x: int, N: int,
         sparse: bool=False):
     assert 2**q >= N
     assert k2 + q - 1 < n
     assert k1 < k2 or k1 >= k2 + q
-    X = sp.csr_matrix((2**n, 2**n), dtype=complex) if sparse \
+    X = sp._csr_matrix((2**n, 2**n), dtype=complex) if sparse \
             else np.zeros((2**n, 2**n), dtype=complex)
     for i in range(2**n):
         I = i2b(i, n)
@@ -362,15 +390,15 @@ def cxymodN_mat(n: int, k1: int, k2: int, q: int, x: int, N: int,
         X[b2i(I[:k2] + i2b(J, q) + I[k2 + q:]), i] = 1.0 + 0.0j
     return X
 
-def cxymodN_matop(n: int, k1: int, k2: int, q: int, x: int, N: int,
+def _cxymodN_matop(n: int, k1: int, k2: int, q: int, x: int, N: int,
         sparse: bool=False):
     return MatOperator(
-        cxymodN_mat(n, k1, k2, q, x, N, sparse),
+        _cxymodN_mat(n, k1, k2, q, x, N, sparse),
         qubit_basis(n),
         is_ketop=True
     )
 
-def cxymodN_func(b: BasisState, k1: int, k2: int, q: int, x: int, N: int):
+def _cxymodN_func(b: BasisState, k1: int, k2: int, q: int, x: int, N: int):
     assert 2**q >= N
     assert k1 < k2 or k1 >= k2 + q
     I = b.label
@@ -384,39 +412,34 @@ def cxymodN_func(b: BasisState, k1: int, k2: int, q: int, x: int, N: int):
     else:
         return StateVec({b: 1.0 + 0.0j}, is_ket=True)
 
-def cxymodN_funcop(n: int, k1: int, k2: int, q: int, x: int, N: int):
+def _cxymodN_funcop(n: int, k1: int, k2: int, q: int, x: int, N: int):
     assert k2 + q - 1 < n
     return FuncOperator(
-        lambda b: cxymodN_func(b, k1, k2, q, x, N),
+        lambda b: _cxymodN_func(b, k1, k2, q, x, N),
         is_ketop=True
     )
 
 def cxymodN(n: int, k1: int, k2: int, q: int, x: int, N: int, kind: str="mat",
         **kwargs):
+    """
+    Construct a `kind`-`Operator` representing a gate operating on qubits `k1`
+    through `k1 + q - 1` (out of `n` total qubits) with qubit `k2` as the
+    control, performing the operation
+        x * y mod N
+    where `x` and `N` are fixed constants and `y` is the numerical value of the
+    specified qubits.
+    """
     if kind == "vec":
-        return cxymodN_vecop(n, k1, k2, q, x, N)
+        return _cxymodN_vecop(n, k1, k2, q, x, N)
     elif kind == "mat":
-        return cxymodN_matop(n, k1, k2, q, x, N, kwargs.get("sparse", False))
+        return _cxymodN_matop(n, k1, k2, q, x, N, kwargs.get("sparse", False))
     elif kind == "func":
-        return cxymodN_funcop(n, k1, k2, q, x, N)
-
-def qft_controlled_gates(qft_wires: int, elements: list[tuple]):
-    gate_map = {
-        "P": "CP",
-        "PHASE": "CPHASE",
-        "NOT": "CNOT",
-        "FUNC": "CFUNC"
-    }
-    assert all(map(lambda X: X[0] in gate_map.keys(), elements))
-    acc = list()
-    for k in range(qft_wires):
-        acc += (2**k) * [
-            (gate_map[X[0]], qft_wires - 1 - k, qft_wires + X[1], *X[2:])
-            for X in elements
-        ]
-    return acc
+        return _cxymodN_funcop(n, k1, k2, q, x, N)
 
 class CircuitOutput:
+    """
+    Stores and manages the output state and measurement of a quantum circuit.
+    """
     def __init__(self, state: StateVec | StateArr, basis: Basis,
             measurement: list[int]=None):
         self.state = state
@@ -465,6 +488,28 @@ class CircuitOutput:
             fig.savefig(outfilename)
 
 class Circuit:
+    """
+    Drives the creation and simulation of a quantum circuit. The circuit itself
+    is stored as a simple list of gate names and associated arguments, rather
+    than as full `*Operator` objects to save on memory. This list can be
+    compiled to a list of only gates that are implemented atomically or to a
+    single `*Operator` representing the overall action of the entire circuit.
+
+    `Circuit`s may be created from a text file detailing the initial state and
+    various gates of the circuit, and may also be used to write similar text
+    files.
+
+    When run, `Circuit`s may perform gate operations one-by-one or by first
+    generating the overall operator mentioned above using any of the kinds of
+    `*Operator`s defined in lib.dirac. `MatOperator`s may be used with sparse
+    internal representations as well.
+
+    If a measurement at the end of a `Circuit` is desired, a number of
+    measurements to perform may optionally be specified. If a measurement is
+    desired but this number is left unspecified, the default number is
+        2^N * 1000
+    where `N` is the number of qubits used by the `Circuit`.
+    """
     def __init__(self, nwires: int, elements: list[tuple],
             initial_state: StateArr, measure: bool | int=False):
         self.nwires = nwires
@@ -478,45 +523,49 @@ class Circuit:
 
     @staticmethod
     def get_vecoperator(gate: str, nwires: int, args: tuple):
+        """
+        Generate the appropriate `VecOperator` for a given gate name and
+        associated arguments.
+        """
         if gate in {"H", "HADAMARD"} and len(args) == 1:
-            return hadamard_vecop(nwires, *args)
+            return _hadamard_vecop(nwires, *args)
         elif gate in {"P", "PHASE"} and len(args) == 2:
-            return phase_vecop(nwires, *args)
+            return _phase_vecop(nwires, *args)
         elif gate == "CNOT" and len(args) == 2:
-            return cnot_vecop(nwires, *args)
+            return _cnot_vecop(nwires, *args)
         elif gate == "NOT" and len(args) == 1:
             (k,) = args
-            return hadamard_vecop(nwires, k) \
-                    * phase_vecop(nwires, k, np.pi) \
-                    * hadamard_vecop(nwires, k)
+            return _hadamard_vecop(nwires, k) \
+                    * _phase_vecop(nwires, k, np.pi) \
+                    * _hadamard_vecop(nwires, k)
         elif gate == "RZ" and len(args) == 2:
             (k, theta) = args
-            return hadamard_vecop(nwires, k) \
-                    * phase_vecop(nwires, k, np.pi) \
-                    * hadamard_vecop(nwires, k) \
-                    * phase_vecop(nwires, k, -theta/2) \
-                    * hadamard_vecop(nwires, k) \
-                    * phase_vecop(nwires, k, np.pi) \
-                    * hadamard_vecop(nwires, k) \
-                    * phase_vecop(nwires, k, theta/2)
+            return _hadamard_vecop(nwires, k) \
+                    * _phase_vecop(nwires, k, np.pi) \
+                    * _hadamard_vecop(nwires, k) \
+                    * _phase_vecop(nwires, k, -theta/2) \
+                    * _hadamard_vecop(nwires, k) \
+                    * _phase_vecop(nwires, k, np.pi) \
+                    * _hadamard_vecop(nwires, k) \
+                    * _phase_vecop(nwires, k, theta/2)
         elif gate == "CRZ" and len(args) == 3:
             (k1, k2, theta) = args
-            return cnot_vecop(nwires, k1, k2) \
-                    * phase_vecop(nwires, k2, -theta/2) \
-                    * cnot_vecop(nwires, k1, k2) \
-                    * phase_vecop(nwires, k2, theta/2)
+            return _cnot_vecop(nwires, k1, k2) \
+                    * _phase_vecop(nwires, k2, -theta/2) \
+                    * _cnot_vecop(nwires, k1, k2) \
+                    * _phase_vecop(nwires, k2, theta/2)
         elif gate in {"CP", "CPHASE"} and len(args) == 3:
             (k1, k2, theta) = args
-            return phase_vecop(nwires, k1, theta/2) \
-                    * cnot_vecop(nwires, k1, k2) \
-                    * phase_vecop(nwires, k2, -theta/2) \
-                    * cnot_vecop(nwires, k1, k2) \
-                    * phase_vecop(nwires, k2, theta/2)
+            return _phase_vecop(nwires, k1, theta/2) \
+                    * _cnot_vecop(nwires, k1, k2) \
+                    * _phase_vecop(nwires, k2, -theta/2) \
+                    * _cnot_vecop(nwires, k1, k2) \
+                    * _phase_vecop(nwires, k2, theta/2)
         elif gate == "SWAP" and len(args) == 2:
             (k1, k2) = args
-            return cnot_vecop(nwires, k1, k2) \
-                    * cnot_vecop(nwires, k2, k1) \
-                    * cnot_vecop(nwires, k1, k2)
+            return _cnot_vecop(nwires, k1, k2) \
+                    * _cnot_vecop(nwires, k2, k1) \
+                    * _cnot_vecop(nwires, k1, k2)
         elif gate == "QFT" and len(args) == 2:
             (k1, k2) = args
             acc = VecOperator.identity(is_ketop=True)
@@ -537,54 +586,58 @@ class Circuit:
             return acc
         elif gate == "FUNC" and len(args) == 5 and args[2] == "xyModN":
             (k, q, _, x, N) = args
-            return xymodN_vecop(nwires, k, q, x, N)
+            return _xymodN_vecop(nwires, k, q, x, N)
         elif gate == "CFUNC" and len(args) == 6 and args[3] == "xyModN":
             (k1, k2, q, _, x, N) = args
-            return cxymodN_vecop(nwires, k1, k2, q, x, N)
+            return _cxymodN_vecop(nwires, k1, k2, q, x, N)
         else:
             raise Exception("Invalid circuit element")
 
     @staticmethod
     def get_mat(gate: str, nwires: int, args: tuple, sparse: bool=False):
+        """
+        Generate the appropriate matrix for a given gate name and associated
+        arguments.
+        """
         if gate in {"H", "HADAMARD"} and len(args) == 1:
-            return hadamard_mat(nwires, *args, sparse)
+            return _hadamard_mat(nwires, *args, sparse)
         elif gate in {"P", "PHASE"} and len(args) == 2:
-            return phase_mat(nwires, *args, sparse)
+            return _phase_mat(nwires, *args, sparse)
         elif gate == "CNOT" and len(args) == 2:
-            return cnot_mat(nwires, *args, sparse)
+            return _cnot_mat(nwires, *args, sparse)
         elif gate == "NOT" and len(args) == 1:
             (k,) = args
-            return hadamard_mat(nwires, k, sparse) \
-                    @ phase_mat(nwires, k, np.pi, sparse) \
-                    @ hadamard_mat(nwires, k, sparse)
+            return _hadamard_mat(nwires, k, sparse) \
+                    @ _phase_mat(nwires, k, np.pi, sparse) \
+                    @ _hadamard_mat(nwires, k, sparse)
         elif gate == "RZ" and len(args) == 2:
             (k, theta) = args
-            return hadamard_mat(nwires, k, sparse) \
-                    @ phase_mat(nwires, k, np.pi, sparse) \
-                    @ hadamard_mat(nwires, k, sparse) \
-                    @ phase_mat(nwires, k, -theta/2, sparse) \
-                    @ hadamard_mat(nwires, k, sparse) \
-                    @ phase_mat(nwires, k, np.pi, sparse) \
-                    @ hadamard_mat(nwires, k, sparse) \
-                    @ phase_mat(nwires, k, theta/2, sparse)
+            return _hadamard_mat(nwires, k, sparse) \
+                    @ _phase_mat(nwires, k, np.pi, sparse) \
+                    @ _hadamard_mat(nwires, k, sparse) \
+                    @ _phase_mat(nwires, k, -theta/2, sparse) \
+                    @ _hadamard_mat(nwires, k, sparse) \
+                    @ _phase_mat(nwires, k, np.pi, sparse) \
+                    @ _hadamard_mat(nwires, k, sparse) \
+                    @ _phase_mat(nwires, k, theta/2, sparse)
         elif gate == "CRZ" and len(args) == 3:
             (k1, k2, theta) = args
-            return cnot_mat(nwires, k1, k2, sparse) \
-                    @ phase_mat(nwires, k2, -theta/2, sparse) \
-                    @ cnot_mat(nwires, k1, k2, sparse) \
-                    @ phase_mat(nwires, k2, theta/2, sparse)
+            return _cnot_mat(nwires, k1, k2, sparse) \
+                    @ _phase_mat(nwires, k2, -theta/2, sparse) \
+                    @ _cnot_mat(nwires, k1, k2, sparse) \
+                    @ _phase_mat(nwires, k2, theta/2, sparse)
         elif gate in {"CP", "CPHASE"} and len(args) == 3:
             (k1, k2, theta) = args
-            return phase_mat(nwires, k1, theta/2, sparse) \
-                    @ cnot_mat(nwires, k1, k2, sparse) \
-                    @ phase_mat(nwires, k2, -theta/2, sparse) \
-                    @ cnot_mat(nwires, k1, k2, sparse) \
-                    @ phase_mat(nwires, k2, theta/2, sparse)
+            return _phase_mat(nwires, k1, theta/2, sparse) \
+                    @ _cnot_mat(nwires, k1, k2, sparse) \
+                    @ _phase_mat(nwires, k2, -theta/2, sparse) \
+                    @ _cnot_mat(nwires, k1, k2, sparse) \
+                    @ _phase_mat(nwires, k2, theta/2, sparse)
         elif gate == "SWAP" and len(args) == 2:
             (k1, k2) = args
-            return cnot_mat(nwires, k1, k2, sparse) \
-                    @ cnot_mat(nwires, k2, k1, sparse) \
-                    @ cnot_mat(nwires, k1, k2, sparse)
+            return _cnot_mat(nwires, k1, k2, sparse) \
+                    @ _cnot_mat(nwires, k2, k1, sparse) \
+                    @ _cnot_mat(nwires, k1, k2, sparse)
         elif gate == "QFT" and len(args) == 2:
             (k1, k2) = args
             acc = (sp.identity(2**nwires, dtype=complex, format="csr") \
@@ -608,16 +661,20 @@ class Circuit:
             return acc
         elif gate == "FUNC" and len(args) == 5 and args[2] == "xyModN":
             (k, q, _, x, N) = args
-            return xymodN_mat(nwires, k, q, x, N)
+            return _xymodN_mat(nwires, k, q, x, N)
         elif gate == "CFUNC" and len(args) == 6 and args[3] == "xyModN":
             (k1, k2, q, _, x, N) = args
-            return cxymodN_mat(nwires, k1, k2, q, x, N)
+            return _cxymodN_mat(nwires, k1, k2, q, x, N)
         else:
             raise Exception("Invalid circuit element")
 
     @staticmethod
     def get_matoperator(gate: str, nwires: int, args: tuple,
             sparse: bool=False):
+        """
+        Generate the appropriate `MatOperator` for a given gate name and
+        associated arguments.
+        """
         return MatOperator(
             Circuit.get_mat(gate, nwires, args, sparse),
             qubit_basis(nwires),
@@ -626,45 +683,49 @@ class Circuit:
 
     @staticmethod
     def get_funcoperator(gate: str, nwires: int, args: tuple):
+        """
+        Generate the appropriate `FuncOperator` for a given gate name and
+        associated arguments.
+        """
         if gate in {"H", "HADAMARD"} and len(args) == 1:
-            return hadamard_funcop(nwires, *args)
+            return _hadamard_funcop(nwires, *args)
         elif gate in {"P", "PHASE"} and len(args) == 2:
-            return phase_funcop(nwires, *args)
+            return _phase_funcop(nwires, *args)
         elif gate == "CNOT" and len(args) == 2:
-            return cnot_funcop(nwires, *args)
+            return _cnot_funcop(nwires, *args)
         elif gate == "NOT" and len(args) == 1:
             (k,) = args
-            return hadamard_funcop(nwires, k) \
-                    * phase_funcop(nwires, k, np.pi) \
-                    * hadamard_funcop(nwires, k)
+            return _hadamard_funcop(nwires, k) \
+                    * _phase_funcop(nwires, k, np.pi) \
+                    * _hadamard_funcop(nwires, k)
         elif gate == "RZ" and len(args) == 2:
             (k, theta) = args
-            return hadamard_funcop(nwires, k) \
-                    * phase_funcop(nwires, k, np.pi) \
-                    * hadamard_funcop(nwires, k) \
-                    * phase_funcop(nwires, k, -theta/2) \
-                    * hadamard_funcop(nwires, k) \
-                    * phase_funcop(nwires, k, np.pi) \
-                    * hadamard_funcop(nwires, k) \
-                    * phase_funcop(nwires, k, theta/2)
+            return _hadamard_funcop(nwires, k) \
+                    * _phase_funcop(nwires, k, np.pi) \
+                    * _hadamard_funcop(nwires, k) \
+                    * _phase_funcop(nwires, k, -theta/2) \
+                    * _hadamard_funcop(nwires, k) \
+                    * _phase_funcop(nwires, k, np.pi) \
+                    * _hadamard_funcop(nwires, k) \
+                    * _phase_funcop(nwires, k, theta/2)
         elif gate == "CRZ" and len(args) == 3:
             (k1, k2, theta) = args
-            return cnot_funcop(nwires, k1, k2) \
-                    * phase_funcop(nwires, k2, -theta/2) \
-                    * cnot_funcop(nwires, k1, k2) \
-                    * phase_funcop(nwires, k2, theta/2)
+            return _cnot_funcop(nwires, k1, k2) \
+                    * _phase_funcop(nwires, k2, -theta/2) \
+                    * _cnot_funcop(nwires, k1, k2) \
+                    * _phase_funcop(nwires, k2, theta/2)
         elif gate in {"CP", "CPHASE"} and len(args) == 3:
             (k1, k2, theta) = args
-            return phase_funcop(nwires, k1, theta/2) \
-                    * cnot_funcop(nwires, k1, k2) \
-                    * phase_funcop(nwires, k2, -theta/2) \
-                    * cnot_funcop(nwires, k1, k2) \
-                    * phase_funcop(nwires, k2, theta/2)
+            return _phase_funcop(nwires, k1, theta/2) \
+                    * _cnot_funcop(nwires, k1, k2) \
+                    * _phase_funcop(nwires, k2, -theta/2) \
+                    * _cnot_funcop(nwires, k1, k2) \
+                    * _phase_funcop(nwires, k2, theta/2)
         elif gate == "SWAP" and len(args) == 2:
             (k1, k2) = args
-            return cnot_funcop(nwires, k1, k2) \
-                    * cnot_funcop(nwires, k2, k1) \
-                    * cnot_funcop(nwires, k1, k2)
+            return _cnot_funcop(nwires, k1, k2) \
+                    * _cnot_funcop(nwires, k2, k1) \
+                    * _cnot_funcop(nwires, k1, k2)
         elif gate == "QFT" and len(args) == 2:
             (k1, k2) = args
             acc = FuncOperator.identity(is_ketop=True)
@@ -685,14 +746,17 @@ class Circuit:
             return acc
         elif gate == "FUNC" and len(args) == 5 and args[2] == "xyModN":
             (k, q, _, x, N) = args
-            return xymodN_funcop(nwires, k, q, x, N)
+            return _xymodN_funcop(nwires, k, q, x, N)
         elif gate == "CFUNC" and len(args) == 6 and args[3] == "xyModN":
             (k1, k2, q, _, x, N) = args
-            return cxymodN_funcop(nwires, k1, k2, q, x, N)
+            return _cxymodN_funcop(nwires, k1, k2, q, x, N)
         else:
             raise Exception("Invalid circuit element")
 
     def generate(self, kind: str="mat", **kwargs):
+        """
+        Generate the single unitary `*Operator` for the circuit.
+        """
         if kind == "vec":
             acc = VecOperator.identity(is_ketop=True)
             for X in self.elements:
@@ -718,6 +782,10 @@ class Circuit:
 
     @staticmethod
     def invert(elements: list[tuple]):
+        """
+        Reverse a list of quantum circuit elements and replace each constituent
+        with its inverse operation.
+        """
         _elements = list()
         for X in reversed(elements):
             if X[0] in {"H", "HADAMARD", "CNOT", "NOT", "SWAP", "REVERSE"}:
@@ -739,6 +807,9 @@ class Circuit:
         return _elements
 
     def inverted(self):
+        """
+        Invert the action of self.
+        """
         return Circuit(
             self.nwires,
             Circuit.invert(self.elements),
@@ -748,6 +819,9 @@ class Circuit:
 
     @staticmethod
     def parse_file(infilename: str):
+        """
+        Read a list of circuit elements from a given circuit file.
+        """
         source = pathlib.Path(infilename)
         with source.open('r') as infile:
             lines = infile.readlines()
@@ -839,6 +913,9 @@ class Circuit:
 
     @staticmethod
     def parse_initial_state(infilename: str):
+        """
+        Generate an initial state from a given initial state file.
+        """
         source = pathlib.Path(infilename)
         with source.open('r') as infile:
             lines = [line.split(" ") for line in infile.readlines()]
@@ -856,7 +933,11 @@ class Circuit:
             raise Exception("Mal-formed initial state component")
         return nwires, initial_state
 
-    def compiled(self):
+    def to_atomic(self):
+        """
+        Replace all circuit elements with equivalent sub-routines using only
+        H/P/CNOT gates.
+        """
         _elements = list()
         for X in self.elements:
             if X[0] in {"H", "HADAMARD"}:
@@ -915,9 +996,15 @@ class Circuit:
 
     @staticmethod
     def from_file(infilename: str):
+        """
+        Generate a `Circuit` from a given circuit file.
+        """
         return Circuit(*Circuit.parse_file(infilename))
 
     def to_file(self, outfilename: str):
+        """
+        Write a description of self to a file.
+        """
         target = pathlib.Path(outfilename)
         outfile = target.open('w')
         outfile.write(f"{self.nwires}\n")
@@ -938,6 +1025,9 @@ class Circuit:
 
     @staticmethod
     def random(Ngates: int, nwires: int, measure: bool=False):
+        """
+        Generate a `Circuit` with randomly chosen operations.
+        """
         gates = ["H", "P", "CNOT"]
         elements = list()
         for k in range(Ngates):
@@ -961,6 +1051,9 @@ class Circuit:
         return Circuit(nwires, elements, initial_state, measure)
 
     def run(self, kind: str="mat", stepwise: bool=False, **kwargs):
+        """
+        Run self to calculate an output state and return a `CircuitOutput`.
+        """
         sparse = kwargs.get("sparse", False)
         if kind == "vec":
             state = self.initial_state.to_statevec()
@@ -974,7 +1067,7 @@ class Circuit:
             else:
                 state = self.generate(kind, **kwargs) * state
         elif kind == "mat":
-            state = copy.deepcopy(self.initial_state)
+            state = self.initial_state.to_statearr(self.basis)
             if stepwise:
                 for X in self.elements:
                     state = Circuit.get_matoperator(

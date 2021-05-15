@@ -7,12 +7,21 @@ import random
 from fractions import Fraction
 
 def is_prime(n):
+    """
+    Return True if `n` is a prime number and False otherwise.
+    """
     return not (n < 2 or any(n % x == 0 for x in range(2, int(np.sqrt(n)) + 1)))
 
 def is_pow(n):
+    """
+    Return True if `n` is a perfect power of a number and False otherwise.
+    """
     return any(pow(n, 1/a) % 1 == 0 for a in range(2, int(np.log2(n)) + 1))
 
 def gcd(a, b):
+    """
+    Return the greatest common divisor of `a` and `b` using Euclid's algorithm.
+    """
     q = b // a
     r = b % a
     if r == 0:
@@ -21,12 +30,20 @@ def gcd(a, b):
         return gcd(r, a)
 
 def order(x, N, maxiters=10000):
+    """
+    Return the number-theoretical order of `x`, mod `N`. (That is, the smallest
+    power `r` such that
+        x^r == 1 mod N
+    """
     for r in range(1, maxiters + 1):
         if pow(x, r, N) == 1:
             return r
 
 def shor_classical(N, maxiters=10000, xr: bool=False, allow_lucky: bool=False,
         print_flag: bool=False):
+    """
+    Implement Shor's algorithm using only classical operations.
+    """
     assert not is_prime(N)
     assert not is_pow(N)
     assert N % 2 != 0
@@ -62,17 +79,22 @@ def shor_classical(N, maxiters=10000, xr: bool=False, allow_lucky: bool=False,
         else:
             return A, B
 
-def eigenvalue_period(U, maxiters=10000):
+def eigenvalue_period(U, N, maxiters=10000):
     e = (np.log(la.eigvals(U)) / (2 * np.pi * 1j)).real
     r = 1
     for j in range(maxiters):
-        r = Fraction(random.choice(e)).limit_denominator().denominator
+        r = Fraction(random.choice(e)).limit_denominator(N).denominator
         if r != 1:
             break
     return r
 
 def shor_semiclassical(N, maxiters=10000, xr: bool=False,
         allow_lucky: bool=False, print_flag: bool=False):
+    """
+    Implement Shor's algorithm semiclassically: use all classical operations,
+    except for the determination of the order r, which is computed using the
+    matrix representation of the quantum-mechanical xymodN operator.
+    """
     assert not is_prime(N)
     assert not is_pow(N)
     assert N % 2 != 0
@@ -93,7 +115,7 @@ def shor_semiclassical(N, maxiters=10000, xr: bool=False,
         n = int(np.ceil(np.log2(N)))
         U = xymodN_mat(n, 0, n, x, N)
         e = (np.log(la.eigvals(U)) / (2 * np.pi * 1j)).real
-        r = eigenvalue_period(U, maxiters)
+        r = eigenvalue_period(U, N, maxiters)
         if print_flag:
             print(f" r = {r}          ", end="", flush=True)
         if r % 2 == 1:
@@ -115,6 +137,10 @@ def shor_semiclassical(N, maxiters=10000, xr: bool=False,
 
 def shor_quantum(N, maxiters=10000, xr: bool=False, allow_lucky: bool=False,
         print_flag: bool=False):
+    """
+    Implement Shor's algorithm using a simulated quantum circuit to determine
+    the order r.
+    """
     assert not is_prime(N)
     assert not is_pow(N)
     assert N % 2 != 0
