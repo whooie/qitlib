@@ -89,16 +89,21 @@ print(sieve_of_eratosthenes(100))
 
 Don't worry about understanding all of this right away. We'll break it down in
 the following sections while we go through some of the basic building blocks of
-the Python language.
+the Python language. As a starting point, though, you may have noticed some
+liberal use of the `#` character -- this signals a 'comment' in code, and tells
+Python to ignore whatever comes after it. Using comments to jot down brief notes
+is a very useful way to keep track of what you're doing and generally make your
+programs more understandable to other people.
 
 ## 1. Variables and data types
 Nearly all programming languages differentiate between types of data. Different
 languages have different standards for how its types are dealt with (Python is
 particularly flexible in this regard), but they all require the programmer to
 think about, for instance, the difference between the number `12` and the letter
-`'a'`. This is partly to help the computer manage all the bits and bytes that make
-up a program while it's running, and partly because some operations simply don't
-make sense for some types. (What would it mean to compute the sum `12 + 'a'`?)
+`'a'`. This is partly to help the computer manage all the bits and bytes that
+make up a program while it's running, and partly because some operations simply
+don't make sense for some types. (What would it mean to compute the sum `12 +
+'a'`?)
 
 ### Numbers
 The first type that we'll deal with is the **number**. In Python, "number"
@@ -122,7 +127,8 @@ brings us to...
 non-integer part. `float`s can interact with all other numbers in the way you'd
 normally expect, but can be written in two different but functionally equivalent
 ways. The first is the standard way, e.g. `250.734`, and the second is with
-scientific notation, e.g. `2.50734e2` as shorthand for 2.50734 \* 10^2.
+scientific notation, e.g. `2.50734e2` as shorthand for 2.50734 \* 10^2 or, in
+Python syntax, `2.50734 * 10**2`.
 
 #### `complex`
 `complex`s are actually two `float`s bundled together to represent the real and
@@ -133,13 +139,76 @@ obey the usual rules, i.e. `1j * 1j` is equal to `-1`.
 
 #### `bool`
 `bool`s (short for Boolean values) represent truth values for logical
-expressions, and can be either `True` or `False`. 
+expressions, and can be either `True` or `False`. When interacting with the
+other number types, `bool`s take on the values `False = 0` and `True = 1`. You
+can also work with `bool`s through *boolean expressions*, which are like regular
+arithmetic ones, except they return either `True` or `False` instead. For
+example, say we want to perform some checks on the number `5` to test its value.
+To this purpose, we can use Python's `==`, `!=`, `<`, `<=`, `>`, and `>=`
+operators which are equivalent to asking whether a value is equal, not equal,
+less than, less than or equal to, greater than, and greater than or equal to
+another value. When used, each of these symbols will return either `True` or
+`False`:
+```python
+5 == 8 # False
+5 != 8 # True
+5 <  8 # True
+5 <= 8 # True
+5 >  8 # False
+5 >= 8 # False
+5 == 5 # True
+5 != 5 # False
+5 >= 5 # True
+```
+
+### Variables
+What is a variable? Simply put, it's a way to store a value in the computer's
+memory so that it can be referred back to at a later time. At its most basic, a
+variable is just a name you give to some value, just like in regular math. In
+Python, values are assigned to names with the `=` operator like so:
+```python
+my_num1 = 5
+my_num2 = 8
+```
+
+Now we have the values `5` and `8` stored in the variable names `my_num1` and
+`my_num2`, respectively. Notice that, unlike the usual your usual math homework,
+our variable names can be more than one letter, and include special characters
+like `_` and even numbers. In fact, anything not beginning with a number or
+containing any punctuation other than `_` is a valid variable name in Python, so
+you could even set `我 = 5` and `你 = 8` if you wanted (for the sake of
+readability, though, please don't)!
+
+Now that we've assigned values to these names, we can use them in any situation
+where we might otherwise use the values they refer to. For example, we can
+perform all the arithmetic operations on them, and even assign them to other
+variables:
+```python
+my_num1 + my_num2
+my_num1 * my_num3
+my_num1 < my_num2
+...
+my_num3 = my_num1
+my_num4 = my_num3 + my_num2
+my_bool = my_num1 == my_num2
+```
+
+Notice that `=` (single equals) is *variable assignment*, while `==` (double
+equals) is the *equality operator*. Being careful about which of these is used
+and where will save you a few headaches down the line.
 
 ### Lists
-
-### Dictionaries
+In the example above, we created a lot of variables with similar names.
+`my_num1`, `my_num2`, `my_num3`, and `my_num4` all refer to numbers that are
+related to each other, so it would make sense to collect them all together so
+that we don't have to keep track of four independent names in the rest of the
+program, wouldn't you say? `list`s are the primary way that Python provides to
+to this. Specifically, `list`s are ordered, untyped collections of data, all
+grouped under one variable name, and are denoted with `[...]` square brackets.
 
 ### Strings
+
+### Dictionaries
 
 ## 2. Logic and control flow
 
