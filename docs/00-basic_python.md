@@ -8,7 +8,7 @@ learn more about this language and how to use it, I suggest taking a look at the
 [official beginner's guide][1] or this [series of recorded lectures from an MIT
 course][2].
 
-## 0. Structure of a Python program
+## 0 Structure of a Python program
 The fundamental goal of any programming language is to describe a well-ordered
 list of explicit actions for a computer to complete, rather like writing down a
 recipe. For example, say you wanted to instruct someone on how to make a peanut
@@ -95,7 +95,7 @@ Python to ignore whatever comes after it. Using comments to jot down brief notes
 is a very useful way to keep track of what you're doing and generally make your
 programs more understandable to other people.
 
-## 1. Variables and data types
+## 1 Variables and data types
 Nearly all programming languages differentiate between types of data. Different
 languages have different standards for how its types are dealt with (Python is
 particularly flexible in this regard), but they all require the programmer to
@@ -105,12 +105,12 @@ make up a program while it's running, and partly because some operations simply
 don't make sense for some types. (What would it mean to compute the sum `12 +
 'a'`?)
 
-### Numbers
+### 1.1 Numbers
 The first type that we'll deal with is the **number**. In Python, "number"
 actually comprises four data types that can all mutually interact through
 standard arithmetic operations (`+`, `-`, `*` `/`).
 
-#### `int`
+#### 1.1.1 `int`
 `int`s are how Python represents integer numbers (that is, all the whole numbers
 from minus infinity to positive infinity). `int`s can add to, subtract from, and
 multiply each other, but there's a bit of fine print when it comes to division.
@@ -122,7 +122,7 @@ discards any non-integer remainder (`5 // 2` equals `2`). The second kind is
 what you should use if you want the full answer as floating-point number, which
 brings us to...
 
-#### `float`
+#### 1.1.2 `float`
 `float`s represent floating-point numbers, or numbers that may have a
 non-integer part. `float`s can interact with all other numbers in the way you'd
 normally expect, but can be written in two different but functionally equivalent
@@ -130,14 +130,14 @@ ways. The first is the standard way, e.g. `250.734`, and the second is with
 scientific notation, e.g. `2.50734e2` as shorthand for 2.50734 \* 10^2 or, in
 Python syntax, `2.50734 * 10**2`.
 
-#### `complex`
+#### 1.1.3 `complex`
 `complex`s are actually two `float`s bundled together to represent the real and
 imaginary parts of a single complex number. To use a `complex`, you can write it
 using `j` notation, e.g. `1.5 + 0.4j`, `-2.6 + 1e6j`. When two complex numbers
 are added, subtracted, multiplied, or divided together, the imaginary components
 obey the usual rules, i.e. `1j * 1j` is equal to `-1`.
 
-#### `bool`
+#### 1.1.4 `bool`
 `bool`s (short for Boolean values) represent truth values for logical
 expressions, and can be either `True` or `False`. When interacting with the
 other number types, `bool`s take on the values `False = 0` and `True = 1`. You
@@ -161,7 +161,7 @@ another value. When used, each of these symbols will return either `True` or
 5 >= 5 # True
 ```
 
-### Variables
+### 1.2 Variables
 What is a variable? Simply put, it's a way to store a value in the computer's
 memory so that it can be referred back to at a later time. At its most basic, a
 variable is just a name you give to some value, just like in regular math. In
@@ -192,35 +192,109 @@ my_num3 = my_num1
 my_num4 = my_num3 + my_num2
 my_bool = my_num1 == my_num2
 ```
-
 Notice that `=` (single equals) is *variable assignment*, while `==` (double
 equals) is the *equality operator*. Being careful about which of these is used
 and where will save you a few headaches down the line.
 
-### Lists
+### 1.3 Lists
 In the example above, we created a lot of variables with similar names.
 `my_num1`, `my_num2`, `my_num3`, and `my_num4` all refer to numbers that are
 related to each other, so it would make sense to collect them all together so
 that we don't have to keep track of four independent names in the rest of the
 program, wouldn't you say? `list`s are the primary way that Python provides to
-to this. Specifically, `list`s are ordered, untyped collections of data, all
+to this. Specifically, `list`s are ordered, mutable collections of data, all
 grouped under one variable name, and are denoted with `[...]` square brackets.
+Let's break down what this means.
 
-### Strings
+Python respects a `list`'s order. This means that whenever a list is declared,
+for example with
+```python
+my_list = [1, 5, 3, 8, 5, 0]
+```
+Python will assign each object contained in the list (in this case the numbers
+`1`, `5`, `2`, `8`, `5`, `0`) an index starting with the leftmost at zero. So
+under this convention, we'd say that `my_list` contains a `1` at its zeroth
+index, a `5` at its first index, and so on:
+```python
+my_list = [1,  5,  3,  8,  5,  0]
+# indices: ^0  ^1  ^2  ^3  ^4  ^5
+```
+These indices are how Python expects you to refer back to the individual objects
+in the list, using the `my_list[...]` notation. To refer to the third index of
+`my_list`, you'd write `my_list[3]`. The indices of a `list` can be reassigned
+after the `list` is constructed with this notation as well, using the `=` as
+above in [Section 1.2](#12-variables): `my_list[3] = 6`.
 
-### Dictionaries
+You can also refer to objects at multiple indices using the `[:]` notation. To
+refer to indices `1` through `3` of `my_list`, you'd write `my_list[1:4]`, where
+the `:` character (which can only be used in this context) indicates to Python
+that you want a range of values, rather than just a single one. Notice that we
+have `4` at the upper end of the range, rather than `3`. This is because in
+Python, the convention for naming ranges of values is to have the upper end be
+non-inclusive; that is, in this case, we name all the indices starting at `1`,
+up to *but not including* `4`.
 
-## 2. Logic and control flow
+The action of taking only some continuous range of indices from a collection of
+objects is called "slicing"; `my_list[1:4]` denotes the "slice" of `my_list`
+over indices `1`, `2`, and `3`. In general, you should expect the type of a
+slice to be the same as the object that was sliced. In other words, the slice
+`my_list[1:4]` should be another list containing the values of `my_list` at
+indices `1`, `2`, and `3`.
 
-### `if` statements
+### 1.4 Strings
+`str`s are Python's string type, which represent ordered sequences of characters
+that do not hold any numerical value. While the most obvious example of a string
+is a collection of alphabetic characters like `"hello world!"`, `str`s may also
+contain numbers (as in `"14820"`) but do not behave like numbers in arithmetic
+expressions.
 
-### `for` loops
+`str`s are a lot like `list`s that are denoted with the `"` or `'` symbols
+instead of `[` and `]`. On an essential level, they are also an ordered
+collection of objects, each of these gets its own index, and the `str` as a
+whole follows the `[...]` indexing notation. There are two important
+differences, however. The first is that the objects contained in the `str` are
+all effectively the same type. Any time you index a `str`, whether by single
+index or by slicing, you will get another `str`. The second difference is that
+the indices of a `str` are not mutable: it is impossible to alter the value of a
+`str` at a specific index through the usual `=` operator.
 
-### `while` loops
+### 1.5 Dictionaries
+`dict`s take the idea of a collection of objects one step further by thinking of
+each object as a mapping from an input to an output. Just like you might use a
+real dictionary to translate a word in English to one in Spanish, `dict`s take
+some "key" and map it to some "value" through the syntax `{key1: value1, key2:
+value2, ...}`. The keys and values can be anything you want, but each value in
+the `dict` must have at least one corresponding key. Take a look at a couple
+examples:
+```python
+dict_en_sp = {
+    "hello": "hola",
+    "goodbye": "adiós",
+    "my name": "me llamo",
+    "where is the library": "donde está la biblioteca"
+}
 
-## 3. Functions
+dict_num_word = {
+    0: "zero",
+    1: "one",
+    2: "two",
+    3: "three"
+}
+```
 
-## 4. General tips for writing Python
+
+
+## 2 Logic and control flow
+
+### 2.1 `if` statements
+
+### 2.2 `for` loops
+
+### 2.3 `while` loops
+
+## 3 Functions
+
+## 4 General tips for writing Python
 
 [1]: https://wiki.python.org/moin/BeginnersGuide
 [2]: https://www.youtube.com/playlist?list=PLUl4u3cNGP63WbdFxL8giv4yhgdMGaZNA
