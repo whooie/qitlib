@@ -54,7 +54,7 @@ def qubit_basis(n: int):
     Generate a `Basis` for `n` qubit wires.
     """
     return Basis(*[
-        BasisState(decstr_to_bitstr(str(k), n)) for k in range(2**n)
+        BasisState(int_to_bitstr(k, n)) for k in range(2**n)
     ])
 
 def _hadamard_vecop(n: int, k: int):
@@ -73,7 +73,7 @@ def _hadamard_mat(n: int, k: int, sparse: bool=False):
     if n is None:
         raise ValueError("Wire count cannot be `None`")
     H = np.array([[1, 1], [1, -1]])/np.sqrt(2)
-    acc = sp._csr_matrix([[1]])
+    acc = sp.csr_matrix([[1]])
     for j in range(n):
         acc = sp.kron(acc, H if j == k else sp.eye(2), format="csr")
     return acc if sparse else acc.toarray()
@@ -132,7 +132,7 @@ def _phase_mat(n: int, k: int, theta: float, sparse: bool=False):
     if n is None:
         raise ValueError("Wire count cannot be `None`")
     P = np.array([[1, 0], [0, np.exp(1j*theta)]])
-    acc = sp._csr_matrix([[1]])
+    acc = sp.csr_matrix([[1]])
     for j in range(n):
         acc = sp.kron(acc, P if j == k else sp.eye(2), format="csr")
     return acc if sparse else acc.toarray()
@@ -187,7 +187,7 @@ def _cnot_mat(n: int, k1: int, k2: int, sparse: bool=False):
     assert k1 != k2
     if n is None:
         raise ValueError("Wire count cannot be `None`")
-    X = sp._csr_matrix((2**n, 2**n), dtype=complex) if sparse \
+    X = sp.csr_matrix((2**n, 2**n), dtype=complex) if sparse \
             else np.zeros((2**n, 2**n), dtype=complex)
     for k in range(2**n):
         B = int_to_bitlist(k, n)
@@ -303,7 +303,7 @@ def _xymodN_vecop(n: int, k: int, q: int, x: int, N: int):
 def _xymodN_mat(n: int, k: int, q: int, x: int, N: int, sparse: bool=False):
     assert 2**q >= N
     assert k + q - 1 < n
-    X = sp._csr_matrix((2**n, 2**n), dtype=complex) if sparse \
+    X = sp.csr_matrix((2**n, 2**n), dtype=complex) if sparse \
             else np.zeros((2**n, 2**n), dtype=complex)
     for i in range(2**n):
         I = i2b(i, n)
@@ -378,7 +378,7 @@ def _cxymodN_mat(n: int, k1: int, k2: int, q: int, x: int, N: int,
     assert 2**q >= N
     assert k2 + q - 1 < n
     assert k1 < k2 or k1 >= k2 + q
-    X = sp._csr_matrix((2**n, 2**n), dtype=complex) if sparse \
+    X = sp.csr_matrix((2**n, 2**n), dtype=complex) if sparse \
             else np.zeros((2**n, 2**n), dtype=complex)
     for i in range(2**n):
         I = i2b(i, n)
@@ -468,6 +468,8 @@ class CircuitOutput:
                     self.measurement
                 ))
                 bins = bins / len(self.basis)
+            else:
+                meas = self.measurement
             fig, ax = pp.subplots()
             ax.hist(
                 meas,
