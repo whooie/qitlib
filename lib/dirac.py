@@ -2,14 +2,41 @@ from __future__ import annotations
 import numpy as np
 import scipy.sparse as sp
 import random
+import copy
 
-### Disallow KetBras ###
-### Assume we're working in a single basis ##
+"""
+Provides basic machinery for working with quantum states and operators. It is
+assumed that we only work with a single basis of orthonormal states, and that
+outer products are disallowed (multiplication of states can give only scalar
+values or errors).
+
+States are represented either as `StateVec`s, which are dicts mapping basis
+states to amplitudes, or `StateArr`s, which are numpy arrays containing the
+full decomposition of the state in a particular basis. Either form can be
+converted to the other.
+
+Operators are represented (roughly in order of computing speed) as
+`MatOperator`s, `VecOperator`s, or `FuncOperator`s. `MatOperator`s contain the
+full matrix representation of an operator and only multiply `StateArr`s;
+`VecOperator`s map basis states to an appropriate output `StateVec` and only
+multiply `StateVec`s. Either of these forms can be converted to the other.
+`FuncOperator`s use pre-defined Python functions to perform actions (and hence
+are the only operators here that can operate on an infinite basis) and only
+multiply `StateVec`s, but can be converted to either of the other two
+representations.
+
+`MatOperator`s and `StateArr`s can be stored as sparse arrays using scipy.sparse
+to save memory.
+"""
 
 Number = (int, float, complex)
 Function = type(lambda:0)
 
 class BasisState:
+    """
+    Represents the most basic form of a basis state (i.e. neither a ket nor a
+    bra; really just a label).
+    """
     def __init__(self, label: str):
         self.label = label
 
@@ -52,6 +79,9 @@ class BasisState:
         return BasisState(label_func(self.label))
 
 class Basis:
+    """
+    List of `BasisState`s.
+    """
     def __init__(self, *states: tuple[BasisState]):
         self.states = states
 
@@ -89,13 +119,24 @@ class Basis:
         return Basis(*[s.relabeled(label_func) for s in self.states])
 
 class StateVec:
+    """
+    Quantum state represented as a collection of Dirac kets (or bras). The state
+    is internally stored as dict[BasisState: complex] (and is indexed as such).
+    Interacts only with other `StateVec`s, `VecOperator`s, and `FuncOperator`s.
+    """
     def __init__(self, components: dict[BasisState, complex],
             is_ket: bool=True):
         self.components = components
         self.is_ket = is_ket
 
     @staticmethod
-    def from_states(*components: StateVec):
+    def from_states(*components: tuple[StateVec]):
+        """
+        Construct a single `StateVec` from many other `StateVec`s, summing
+        amplitudes for identical basis states and removing any zero-amplitude
+        terms in the process. All inputs to this function must have the same
+        `.is_ket` value.
+        """
         kind_sum = sum(map(lambda S: S.is_ket, components))
         assert kind_sum in {0, len(components)}
         _is_ket = bool(kind_sum)
@@ -111,6 +152,10 @@ class StateVec:
 
     @staticmethod
     def from_primitives(*components: tuple[complex, str], is_ket: bool=True):
+        """
+        Construct a single `StateVec` from many tuple[complex, str] pairs. Does
+        not combine like terms or remove zero-amplitude terms.
+        """
         return StateVec(
             {BasisState(l): a for a, l in components if a != 0},
             is_ket
@@ -129,7 +174,17 @@ class StateVec:
     def hc(self):
         return self.conjugate()
 
+    def to_statevec(self):
+        """
+        Deep copy of self.
+        """
+        return copy.deepcopy(self)
+
     def to_statearr(self, basis: Basis, sparse=False):
+        """
+        Return a `StateArr` containing the decomposition of self in the given
+        `Basis`.
+        """
         if sparse:
             if self.is_ket:
                 _components = sp.csr_matrix([[self.__mul__(b)] for b in basis])
@@ -208,12 +263,15 @@ class StateVec:
         return StateVec({b: a / other for b, a in self})
 
     def __str__(self):
-        return " + ".join(f"({a:g})*" \
-                + ("|" if self.is_ket else "<") \
-                + f"{b.label}" \
-                + (">" if self.is_ket else "|")
-            for b, a in self if a != 0
-        )
+        if len(self) == 0:
+            return "0"
+        else:
+            return " + ".join(f"({a:g})" \
+                    + ("|" if self.is_ket else "<") \
+                    + f"{b.label}" \
+                    + (">" if self.is_ket else "|")
+                for b, a in self if a != 0
+            )
 
     def __repr__(self):
         return "StateVec({" \
@@ -236,9 +294,18 @@ class StateVec:
         return np.sqrt(sum(abs(a)**2 for a in self.components.values()))
 
     def normalized(self):
+        """
+        Return a copy of self where amplitudes are properly normalized.
+        """
         return self.__truediv__(self.norm())
 
     def measure_single(self, state_func=None):
+        """
+        Perform a single measurement on self, returning any constituent
+        `BasisState` with appropriate probabilities. A function taking as input
+        a single `BasisState` and returning anything can optionally be provided
+        to call on the result of the measurement.
+        """
         N2 = self.norm()**2
         r = random.random()
         acc = 0
@@ -248,9 +315,16 @@ class StateVec:
                 return state_func(s) if state_func is not None else s
 
     def measure(self, N: int=1000, state_func=None):
+        """
+        Perform `measure_single` on self for `N` times and return the results in
+        a list.
+        """
         return [self.measure_single(state_func) for k in range(N)]
 
     def most_probable(self):
+        """
+        Return the most probable result of a single measurement.
+        """
         P = 0.0
         B = list(self.keys())[0]
         for b, a in self:
@@ -259,10 +333,13 @@ class StateVec:
                 B = b
         return B
 
-    def apply_func(self, func):
-        pass
-
 class StateArr:
+    """
+    Quantum state represented as a collection of complex amplitudes giving a
+    decomposition in a particular `Basis`. The state is internally stored as
+    numpy.ndarray[complex128] or scipy.sparse.csr_matrix[complex128] (and is
+    indexed as such). Interacts only with other `StateArr`s or `MatOperator`s.
+    """
     def __init__(self, components: np.ndarray | sp.csr_matrix, basis: Basis,
             is_ket: bool=True):
         assert components.shape == (len(basis),) \
@@ -294,9 +371,22 @@ class StateArr:
         return self.conjugate()
 
     def to_statevec(self):
+        """
+        Return a `StateVec` containing the minimal equivalent ket-bra
+        representation of self (i.e. with zero components removed).
+        """
         return StateVec({b: a for b, a in self}, self.is_ket)
 
+    def to_statearr(self, basis: Basis):
+        """
+        Deep copy of self.
+        """
+        return copy.deepcopy(self)
+
     def to_sparse(self):
+        """
+        Convert to a sparse internal representation.
+        """
         if self.is_sparse:
             return self
         else:
@@ -307,6 +397,9 @@ class StateArr:
             )
 
     def to_dense(self):
+        """
+        Convert to a dense internal representation.
+        """
         if self.is_sparse:
             return StateArr(
                 self.components.toarray(),
@@ -422,9 +515,18 @@ class StateArr:
         return np.sqrt(sum(abs(a)**2 for a in self.components))
 
     def normalized(self):
+        """
+        Return a copy of self where amplitudes are properly normalized.
+        """
         return self.__truediv__(self.norm())
 
     def measure_single(self, state_func=None):
+        """
+        Perform a single measurement on self, returning any constituent
+        `BasisState` with appropriate probabilities. A function taking as input
+        a single `BasisState` and returning anything can optionally be provided
+        to call on the result of the measurement.
+        """
         N2 = self.norm()**2
         r = random.random()
         acc = 0
@@ -434,15 +536,25 @@ class StateArr:
                 return state_func(s) if state_func is not None else s
 
     def measure(self, N: int=1000, state_func=None):
+        """
+        Perform `measure_single` on self for `N` times and return the results in
+        a list.
+        """
         return [self.measure_single(state_func) for k in range(N)]
 
     def most_probable(self):
+        """
+        Return the most probable result of a single measurement.
+        """
         return self.basis[np.argmax(np.abs(self.components)**2)]
 
-    def apply_func(self, func):
-        pass
-
 class VecOperator:
+    """
+    Quantum operator represented as a collection of `BasisState`-to-`StateVec`
+    mappings. The action of the operator is internally stored as
+    dict[BasisState: StateVec] (and is indexed as such). Interacts only with
+    other `VecOperator`s, `FuncOperator`s, and `StateVec`s.
+    """
     def __init__(self, action: dict[BasisState, StateVec], is_ketop: bool=True,
             default_zero: bool=True, scalar: complex=1.0 + 0.0j):
         self.action = action
@@ -471,6 +583,10 @@ class VecOperator:
         return self.adjoint()
 
     def to_matoperator(self, basis: Basis, sparse: bool=False):
+        """
+        Convert to an equivalent `MatOperator` representation in the given
+        `Basis`.
+        """
         return MatOperator(
             (sp.csr_matrix if sparse else np.array)([
                 [self[B].__rmul__(b) if self.is_ketop
@@ -634,6 +750,12 @@ class VecOperator:
         )
 
 class MatOperator:
+    """
+    Quantum operator represented as a an array of matrix elements for a given
+    `Basis`. The action of the operator is internally stored as
+    numpy.ndarray[complex128] or scipy.sparse.csr_matrix[complex128] (and is
+    indexed as such). Interacts only with other `MatOperator`s and `StateVec`s.
+    """
     def __init__(self, action: np.ndarray | sp.csr_matrix, basis: Basis,
             is_ketop: bool=True):
         assert action.shape == (len(basis), len(basis))
@@ -659,6 +781,9 @@ class MatOperator:
         return self.adjoint()
 
     def to_vecoperator(self):
+        """
+        Convert to an equivalent `VecOperator` representation.
+        """
         _action = dict()
         for i in range(len(self.basis)):
             _action[self.basis[i]] = StateArr(
@@ -674,6 +799,9 @@ class MatOperator:
         )
 
     def to_sparse(self):
+        """
+        Convert to a sparse internal representation.
+        """
         if self.is_sparse:
             return self
         else:
@@ -684,6 +812,9 @@ class MatOperator:
             )
 
     def to_dense(self):
+        """
+        Convert to a dense internal representation.
+        """
         if self.is_sparse:
             return MatOperator(
                 self.action.toarray(),
@@ -784,14 +915,18 @@ class MatOperator:
         )
 
 class FuncOperator:
+    """
+    Quantum operator represented as a black bax mapping `BasisState`s to
+    corresponding `StateVec`s. The action of the operator is internally stored
+    as a Python function. Interacts only with all `*Operator`s and `StateVec`s.
+
+    Functions must have the signature
+        action(BasisState) -> StateVec(is_ket=True)
+    upon construction using __init__. Combinations of `FuncOperator`s with other
+    `*Operator`s are created by composing function calls (and always return new
+    `FuncOperator`s), so be wary of having too many such interactions.
+    """
     def __init__(self, action: Function, is_ketop=True):
-        """
-        Functions must have signature
-            action(BasisState) -> StateVec(is_ket=True)
-        Combinations of `FuncOperators` with other `*Operator`s are created by
-        composing function calls, so be wary of having too many such
-        interactions.
-        """
         self.action = action
         self.is_ketop = is_ketop
 
@@ -799,7 +934,7 @@ class FuncOperator:
     def identity(is_ketop=True):
         return FuncOperator(
             (lambda b: StateVec({b: 1.0 + 0.0j})) if is_ketop \
-                    else (lambda b: StateVec({b: 1.0 + 0.0j})),
+                    else (lambda b: StateVec({b: 1.0 + 0.0j}, is_ket=False)),
             is_ketop
         )
 
@@ -813,6 +948,10 @@ class FuncOperator:
         return self.adjoint()
 
     def to_matoperator(self, basis: Basis, sparse: bool=False):
+        """
+        Convert to an equivalent `MatOperator` representation in the given
+        `Basis`.
+        """
         return MatOperator(
             (sp.csr_matrix if sparse else np.array)([
                 [(self * B).__rmul__(b) if self.is_ketop
@@ -824,6 +963,10 @@ class FuncOperator:
         )
 
     def to_vecoperator(self, basis: Basis, default_zero: bool=True):
+        """
+        Convert to an equivalent `VecOperator` representation computed for a
+        given `Basis`.
+        """
         return VecOperator(
             {b: self.action(b) for b in basis},
             self.is_ketop,
