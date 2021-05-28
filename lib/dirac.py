@@ -263,12 +263,15 @@ class StateVec:
         return StateVec({b: a / other for b, a in self})
 
     def __str__(self):
-        return " + ".join(f"({a:g})" \
-                + ("|" if self.is_ket else "<") \
-                + f"{b.label}" \
-                + (">" if self.is_ket else "|")
-            for b, a in self if a != 0
-        )
+        if len(self) == 0:
+            return "0"
+        else:
+            return " + ".join(f"({a:g})" \
+                    + ("|" if self.is_ket else "<") \
+                    + f"{b.label}" \
+                    + (">" if self.is_ket else "|")
+                for b, a in self if a != 0
+            )
 
     def __repr__(self):
         return "StateVec({" \
