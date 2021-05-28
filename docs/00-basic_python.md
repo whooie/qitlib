@@ -9,11 +9,12 @@ learn more about this language and how to use it, I suggest taking a look at the
 course][2].
 
 ## 0 Structure of a Python program
-The fundamental goal of any programming language is to describe a well-ordered
-list of explicit actions for a computer to complete, rather like writing down a
-recipe. For example, say you wanted to instruct someone on how to make a peanut
-butter-and-jelly sandwich. How would you go about this? After taking a second or
-two to jot it down, you might start with something like this:
+The fundamental goal of many programming languages (including Python) is to
+describe a well-ordered list of explicit actions for a computer to complete,
+rather like writing down a recipe. For example, say you wanted to instruct
+someone on how to make a peanut butter-and-jelly sandwich. How would you go
+about this? After taking a second or two to jot it down, you might start with
+something like this:
 ```
 1. Put two slices of bread on a plate;
 2. Spread peanut butter over one slice;
@@ -150,15 +151,15 @@ less than, less than or equal to, greater than, and greater than or equal to
 another value. When used, each of these symbols will return either `True` or
 `False`:
 ```python
-5 == 8 # False
-5 != 8 # True
-5 <  8 # True
-5 <= 8 # True
-5 >  8 # False
-5 >= 8 # False
-5 == 5 # True
-5 != 5 # False
-5 >= 5 # True
+5 == 8 # returns False
+5 != 8 # returns True
+5 <  8 # returns True
+5 <= 8 # returns True
+5 >  8 # returns False
+5 >= 8 # returns False
+5 == 5 # returns True
+5 != 5 # returns False
+5 >= 5 # returns True
 ```
 
 ### 1.2 Variables
@@ -282,19 +283,49 @@ dict_num_word = {
 }
 ```
 
+The first dictionary above defines a mapping from a small set of phrases (as
+`str`s) in English to their corresponding phrases Spanish, while the second
+maps a few `int`s to their corresponding word forms. To access these mappings,
+we use the `[...]` syntax to feed in a key, and get its value back out:
+```python
+dict_en_sp["hello"] # returns "hola"
+dict_num_word[3] # returns "three"
+```
 
+There are two important differences between `list`s and `dict`s with regard to
+this syntax, however. The first is that `dict`s cannot be sliced. The second is
+that `dict`s support value assignment to keys that do not already exist in the
+`dict`. If we wanted to expand `dict_en_sp` or add more numbers to
+`dict_num_word`, we could do this simply with the `=` operator:
+```python
+dict_en_sp["the spider"] = "la araña"
+dict_en_sp["the python"] = "la pitón"
+dict_num_word[4] = "four"
+dict_num_word[100] = "one hundred"
+```
 
 ## 2 Logic and control flow
+Now that we've defined some basic types, it's time to start doing something with
+them! Like we noted earlier, the fundamental goal of having defining all of
+the concepts and specifying all of the rules above is to have a way to give the
+computer a well-ordered list of instructions. It's entirely possible to write a
+program in the flavor of our recipe for making PB&J above, where we tell the
+computer to perform only a set number of tasks. But in an ideal world, we'd like
+our computer to be able to *do more*. We'd like it to make decisions and repeat
+tasks without us having to explicitly give it instructions to do exactly those
+tasks. The way to do this in Python is through the use of `if`, `for`, and
+`while` statements.
 
 ### 2.1 `if` statements
+The conditional statement lies at the heart of how computers make decisions.
 
-### 2.2 `for` loops
-
-### 2.3 `while` loops
+### 2.2 `for` and `while` loops
 
 ## 3 Functions
 
-## 4 General tips for writing Python
+## 4 The Sieve of Eratosthenes
+
+## 5 General tips for writing Python
 
 [1]: https://wiki.python.org/moin/BeginnersGuide
 [2]: https://www.youtube.com/playlist?list=PLUl4u3cNGP63WbdFxL8giv4yhgdMGaZNA
