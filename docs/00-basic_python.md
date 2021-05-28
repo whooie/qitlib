@@ -162,6 +162,29 @@ another value. When used, each of these symbols will return either `True` or
 5 >= 5 # returns True
 ```
 
+`bool`s can also interact with other `bool`s through standard logical operations
+like `and`, `or`, and `not`. The action of these operations is usually expressed
+through a "truth" table, where we look at all the possible values of two `bool`s
+`P` and `Q`, and report the corresponding value of some Boolean operation:
+| `P`     | `not P` |
+|:--------|:--------|
+| `True`  | `False` |
+| `False` | `True`  |
+
+| `P`     | `Q`     | `P and Q` |
+|:--------|:--------|:----------|
+| `True`  | `True`  | `True`    |
+| `False` | `True`  | `False`   |
+| `True`  | `False` | `False`   |
+| `False` | `False` | `False`   |
+
+| `P`     | `Q`     | `P or Q` |
+|:--------|:--------|:----------|
+| `True`  | `True`  | `True`    |
+| `False` | `True`  | `True`    |
+| `True`  | `False` | `True`    |
+| `False` | `False` | `False`   |
+
 ### 1.2 Variables
 What is a variable? Simply put, it's a way to store a value in the computer's
 memory so that it can be referred back to at a later time. At its most basic, a
@@ -317,13 +340,161 @@ tasks. The way to do this in Python is through the use of `if`, `for`, and
 `while` statements.
 
 ### 2.1 `if` statements
-The conditional statement lies at the heart of how computers make decisions.
+The conditional statement lies at the heart of how computers make decisions. The
+concept behind an `if` statement is straightforward: It's an instruction for the
+computer to do an action or set of actions depending on the value of some
+control expression. The syntax goes like this:
+```python
+if expr:
+    # execute code here only if expr == True
+    print("True!")
+```
+`else` or `elif` clauses can also be added, which tell the computer what to do
+when `expr` is `False`, or give additional `if` statements that are performed
+only when all control expressions before them are `False`:
+```python
+if expr0:
+    # execute only if expr0 == True
+    print("expr0 is True!")
+elif expr1:
+    # execute only if expr0 == False and expr1 == True
+    print("expr1 is True!")
+elif expr2:
+    # execute only if expr0 == False and expr1 == False and expr2 == True
+    print("expr2 is True!")
+else:
+    # execute only if expr0, expr1, and expr2 are all False
+    print("expr0, expr1, expr2 are False!")
+```
+
+Notice in all these examples how everything in between each `if`, `elif`, or
+`else` clause is indented. Aside from making these blocks of code easier to
+read, these indentations signal to Python what is part of the clause and what is
+not. In Python, the `:` character at the end of a line indicates the beginning
+of what is called a "scope", where every line after the `:` that has the
+indentation is considered to be associated with whatever opened the scope:
+```python
+my_sum = 1 + 1
+if my_sum == 2:
+    print("Python can do math!") # these lines are in the scope of the if
+    my_sum + 8 == 10             # statement - they're executed only if
+                                 # my_sum == 2
+print("hello world!") # these lines are outside the scope of the if statement
+my_sum - 2 == 0       # they're executed regardless of whether my_sum == 2 is
+                      # True or not
+```
 
 ### 2.2 `for` and `while` loops
+Loops are the primary method to make the computer perform a set of actions
+repeatedly without literally writing out the actions for each time you want them
+repeated. Like `if` statements, `for` and `while` loops have associated scopes,
+where actions inside the scopes are performed some number of times. The
+difference between `for` and `while` essentially lies in how the number of times
+is decided.
+
+`for` loops specify that anything in the scope should be executed for some
+prescribed number of times, and are generally written in the form of
+```python
+for iterator in range(50):
+    # your code here
+    ...
+```
+Here, `range(50)` can be thought of as a special kind of `list` that refers to
+all the `int`s from `0` up to (but, as per Python convention, not including)
+`50`. The `for` statement at the top tells the computer to set the variable
+`iterator` equal to the first object it finds in `range(50)`, do whatever it
+finds in the following scope, and then do it all over again after setting
+`iterator` equal to the next object in `range(50)`. The repetition ends when the
+loop has gotten to the last object in `range(50)`.
+
+`while` loops, on the other hand, specify that anything in the scope should be
+executed over and over, so long as a given Boolean expression is `True`, and
+look like this:
+```python
+while expr:
+    # your code here
+    ...
+```
+The core idea of a `while` loop is the same as for a `for` loop, except that
+instead of setting an iterator variable for each repetition, the computer will
+compute the value of `expr` and do whatever is in the scope if `expr` is `True`.
+Caution should be taken when using `while` loops, however, since there's nothing
+in principle that will stop the computer from repeating the loop an infinite
+number of times, as in the following example:
+```python
+control = 5
+while control == 5:
+    # your code here
+    ...
+```
+So if you're not careful, your program could get stuck in an infinite loop! The
+best way to avoid this is to make sure that there is some way for your control
+expression to eventually evaluate to `False`, but failing that, another way to
+stop a loop early -- both `for` and `while` loops -- is by using the `break`
+keyword, as in
+```python
+control = 5
+count = 0
+while control == 5:
+    count = count + 1
+    if count > 999:
+        break
+    # your code here
+    ...
+```
+
+When the computer encounters `break`, it will immediately halt execution of the
+surrounding `for` or `while` loop, and continue on from the end of the loop's
+scope. The above is a particularly simple example of its use (you could actually
+just swap the `while` part out for `for k in range(999)`), but `break` is a
+handy tool for more complex situations.
 
 ## 3 Functions
+Functions are another useful tool in the Python kit. Just like functions in
+everyday mathematics, functions represent sets of operations that can be
+performed for some range of input variables and spit out some kind of output
+value.
 
 ## 4 The Sieve of Eratosthenes
+Now we'll return to the big block of code shown at the beginning of this
+document. For convenience, we'll reprint it here:
+```python
+# define basic names and terms for the program at the top of the program.
+# by default, Python doesn't know what square roots are, so we have to define it
+# here using someone else's code
+from math import sqrt
+
+# we want this to find all the prime numbers that are less than or equal to N.
+# we'll do this by looking at each number less than or equal to N and checking
+# to see if it's divisible by any other number in the list. Any number that is
+# not divisible by any other number in this list is prime.
+def sieve_of_eratosthenes(N):
+
+    # start with a list of all integers in the range [2, N + 1)
+    candidates = [n for n in range(2, N + 1)]
+
+    # do the following for each of the candidate numbers
+    for n in candidates:
+
+        # we don't need to check any numbers greater than √N
+        if n > sqrt(N):
+            break
+
+        # we also don't need to check any numbers we've already eliminated
+        if n == -1:
+            continue
+
+        # set all of n's multiples equal to -1
+        for j in range(n**2 + n - 2, N - 1, n):
+            candidates[j] = -1
+
+    # any remaining numbers not equal to -1 is prime!
+    primes = [n for n in candidates if n != -1]
+    return primes
+
+# print all primes up to 100
+print(sieve_of_eratosthenes(100))
+```
 
 ## 5 General tips for writing Python
 
