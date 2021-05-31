@@ -573,7 +573,7 @@ class VecOperator:
 
     def adjoint(self):
         return VecOperator(
-            {b: self.action[s].conjugate() for b in self.keys()},
+            {b: self.action[b].conjugate() for b in self.keys()},
             not self.is_ketop,
             self.default_zero,
             self.X
