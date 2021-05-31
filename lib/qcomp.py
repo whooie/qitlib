@@ -460,32 +460,30 @@ class CircuitOutput:
     def get_hist(self, density: bool=False, fractional: bool=False):
         if self.measurement is None:
             return None
+        bins = np.arange(-0.5, len(self.basis) + 0.5, 1)
+        if fractional:
+            measurement = list(map(
+                lambda x: x / len(self.basis),
+                self.measurement
+            ))
+            bins = bins / len(self.basis)
         else:
-            bins = np.arange(-0.5, len(self.basis) + 0.5, 1)
-            if fractional:
-                meas = list(map(
-                    lambda x: x / len(self.basis),
-                    self.measurement
-                ))
-                bins = bins / len(self.basis)
-            fig, ax = pp.subplots()
-            ax.hist(
-                meas,
-                bins=bins,
-                edgecolor="k",
-                density=density
-            )
-            ax.set_xlabel("Measurement")
-            ax.set_ylabel("Probability density" if density else "Count")
-            ax.grid(False, "both", "x")
-            return fig, ax
+            measurement = self.measurement
+        P = pd.Plotter()
+        P \
+            .hist(measurement, bins=bins, edgecolor="k", density=density) \
+            .set_xlabel("Measurement") \
+            .set_ylabel("Probability density" if density else "Count") \
+            .grid(False, "both", "x")
+        return P
 
-    def save_hist(self, outfilename: str, density: bool=False):
+    def save_hist(self, outfilename: str, density: bool=False,
+            fractional: bool=False):
         if self.measurement is None:
             raise Exception("Does not contain measurement")
         else:
-            fig, ax = self.get_hist()
-            fig.savefig(outfilename)
+            P = self.get_hist(density, fractional)
+            P.savefig(outfilename)
 
 class Circuit:
     """
