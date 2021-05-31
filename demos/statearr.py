@@ -52,5 +52,5 @@ print(S_z * y_p)
 # Python's order of operations makes expectation values a bit awkward
 print("<-z| S_z |-z> =", z_m.hc() * (S_z * z_m))
 print("<+y| S_y |+y> =", y_p.hc() * (S_y * y_p))
-print("<-z| S_x |+z> =", z_m.hc() * (S_x * z_p))
+print("<-z| S_x |+z> =", z_m.hc() * S_x.hc() * z_p)
 
