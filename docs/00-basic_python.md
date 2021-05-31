@@ -48,8 +48,9 @@ may for some reason be able to see, like you or I might, that the order in which
 steps (2) and (3) in the PB&J recipe doesn't matter, Python will not. Instead,
 it forces the computer to look at each line of the program and execute it
 one-by-one. This means that the general structure of a program written in Python
-should look broadly like this one, which implements a well-known algorithm for
-finding all the prime numbers less than some number `N`:
+should look broadly like this one, which implements a well-known algorithm
+called the ["Sieve of Eratosthenes"][3] for finding all the prime numbers less
+than some number `N`:
 ```python
 # define basic names and terms for the program at the top of the program.
 # by default, Python doesn't know what square roots are, so we have to define it
@@ -77,7 +78,7 @@ def sieve_of_eratosthenes(N):
             continue
 
         # set all of n's multiples equal to -1
-        for j in range(n**2 + n - 2, N - 1, n):
+        for j in range(n**2 - 2, N - 1, n):
             candidates[j] = -1
 
     # any remaining numbers not equal to -1 is prime!
@@ -166,6 +167,7 @@ another value. When used, each of these symbols will return either `True` or
 like `and`, `or`, and `not`. The action of these operations is usually expressed
 through a "truth" table, where we look at all the possible values of two `bool`s
 `P` and `Q`, and report the corresponding value of some Boolean operation:
+
 | `P`     | `not P` |
 |:--------|:--------|
 | `True`  | `False` |
@@ -449,11 +451,81 @@ scope. The above is a particularly simple example of its use (you could actually
 just swap the `while` part out for `for k in range(999)`), but `break` is a
 handy tool for more complex situations.
 
+As a side note, `for` loops can be used very efficiently in the construction of
+`list`s, as in the big prime number-snippet of code toward the top of this page.
+This style of constructing `list`s is called "list comprehension", and follows
+the general form of
+```python
+my_list = [expr for item in some_iterable if condition]
+```
+where `expr` determines what goes in the `list`, and `item` is the iteration
+variable for the `for` loop that goes over the contents of `some_iterable`, only
+if the optionally included`condition` evaluates to `True`. `some_iterable` is
+anything that contains some number of items: most of the time it'll be something
+like a `list`, but in principle could be a `str`, or even a `dict`! Let's take a
+look at an example:
+```python
+digits = [k for k in range(0, 10)]
+```
+This is a simple -- but typical -- way to use list comprehension: in this
+example, we're using it to create a list whose contents are simply just the
+contents of `range(0, 10)`, which are all the integers in `[0, 10)`. But we can
+get a little more creative. We could create a list of all the squares up to 100
+that are greater than 50,
+```python
+squares = [k * k for k in range(0, 10) if k * k > 50]
+```
+or a list containing the separated characters of a `str`,
+```python
+chars = [c for c in "hello world!"]
+```
+List comprehension is a powerful way to create `list`s concisely!
+
 ## 3 Functions
 Functions are another useful tool in the Python kit. Just like functions in
 everyday mathematics, functions represent sets of operations that can be
-performed for some range of input variables and spit out some kind of output
-value.
+performed for some range of input variables and return some kind of output
+value. The general syntax for a function looks like this:
+```python
+def my_function(arg1, arg2, arg3):
+    a = 2 * arg1
+    b = arg1 + arg2 / 2
+    print(arg3)
+    return [a, b]
+```
+
+There are a few key things to notice about this example, so let's break it down
+line-by-line. Starting at the top, the `def` keyword tells Python that we intend
+to define a function in the following scope. Then we have the name of the
+function, in this case `my_function`, and attached to it are its arguments, `x`,
+`y`, `z`, separated by commas and surrounded by parentheses. This bit between
+the `def` and the `:` on the first line is called the function's "signature". In
+Python, functions can have any number of arguments, and they can be called
+anything you want (usually they're something a bit more descriptive than what's
+written here).
+
+Then the `:` on that line opens up a scope to the function's "body", where all
+the operations are performed. In this case, we set two variables, `a` and `b`
+using the first two arguments, and use another function, `print`, to display the
+value of the third argument, but as we'll see in the next section, the function
+body can contain anything you want!
+
+Finally, the last line contains a `return` statement. This defines the
+function's output, and is actually optional. If a function has a return
+statement, whatever gets returned (in this example, `[a, b]`) can then come to
+be represented by the function call:
+```python
+my_arg1 = 5
+my_arg2 = 8
+my_arg3 = 13
+the_result = my_function(my_arg1, my_arg2, my_arg3)
+```
+This code snippet sets the values of three variables -- `my_arg1`, `my_arg2`,
+`my_arg3` -- and passes them to `my_function(...)`, where they take the places
+of the corresponding `arg1`, `arg2`, and `arg3` in the function's signature.
+Then on the last line, the output of the function call is assigned to the
+variable `the_result`. After this snippet has been executed by the computer, we
+should see `13` printed out, and `the_result` should have the value `[10, 9.0]`.
 
 ## 4 The Sieve of Eratosthenes
 Now we'll return to the big block of code shown at the beginning of this
@@ -485,7 +557,7 @@ def sieve_of_eratosthenes(N):
             continue
 
         # set all of n's multiples equal to -1
-        for j in range(n**2 + n - 2, N - 1, n):
+        for j in range(n**2 - 2, N - 1, n):
             candidates[j] = -1
 
     # any remaining numbers not equal to -1 is prime!
@@ -495,9 +567,47 @@ def sieve_of_eratosthenes(N):
 # print all primes up to 100
 print(sieve_of_eratosthenes(100))
 ```
+Let's break it down line-by-line. Just like Python, we'll ignore anything
+following a `#` character and empty lines.
 
-## 5 General tips for writing Python
+The general idea behind this algorithm is to generate a list of all the numbers
+up to and including some upper limit, and eliminate all the numbers on that list
+that are not prime (we'll do this by replacing it with `-1`). This is done by
+starting from 2 (since 0 and 1 are never prime) and eliminating all multiples of
+each of these numbers from the list. Any numbers remaining on the list must
+therefore be prime!
+
+First, we have `from math import sqrt`. This tells Python to define an object
+called `sqrt` (in this case, it's a function) from another piece of code that
+someone else has written. After it has done so, we'll be able to use the
+`sqrt(...)` function as though we had defined it ourselves.
+
+Next, we declare another function called `sieve_of_eratosthenes`, which can take
+one argument called `N`. In this function's body, we first create a list called
+`candidates` that contains all the integers from `2` to `N + 1`, exclusive of
+`N + 1` itself. Since the list starts at `2`, we know that the number `k` will
+lie at the `k - 2`-th index of `candidates`.
+
+Then we loop over all of these numbers, with `n` as the iteration variable. Then
+two checks are performed. If `n` is greater than the square root of `N`, then we
+can break out of the loop, since by then, the program will have already
+determined whether those numbers are prime. If `n` is equal to `-1` then we've
+already checked whatever that number was, and we can skip it using the
+`continue` keyword.
+
+If `n` passes both of these checks, then it's prime, and we can use it to
+eliminate all of `n`'s multiples from `candidates`. This is done with the second
+`for` loop ranging from `n**2 - 2` (the index of the first number that hasn't
+already been marked checked) up to `N - 2` (the index of `N`) in steps of `n`.
+
+Then after the outer `for` loop has finished execution, we assemble all the
+numbers from `candidates` that are not equal to `-1` into their own list,
+`primes`, and return it.
+
+On the last line, we use the function by calling it with `N = 100`, and print
+out what it returns.
 
 [1]: https://wiki.python.org/moin/BeginnersGuide
 [2]: https://www.youtube.com/playlist?list=PLUl4u3cNGP63WbdFxL8giv4yhgdMGaZNA
+[3]: https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes
 
