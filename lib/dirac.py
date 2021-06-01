@@ -556,11 +556,10 @@ class VecOperator:
     other `VecOperator`s, `FuncOperator`s, and `StateVec`s.
     """
     def __init__(self, action: dict[BasisState, StateVec], is_ketop: bool=True,
-            default_zero: bool=True, scalar: complex=1.0 + 0.0j):
+            default_zero: bool=True):
         self.action = action
         self.is_ketop = is_ketop
         self.default_zero = default_zero
-        self.X = complex(scalar)
 
     @staticmethod
     def identity(is_ketop=True):
@@ -568,7 +567,6 @@ class VecOperator:
             dict(),
             is_ketop,
             default_zero=False,
-            scalar=1.0 + 0.0j
         )
 
     def adjoint(self):
@@ -576,7 +574,6 @@ class VecOperator:
             {b: self.action[s].conjugate() for b in self.keys()},
             not self.is_ketop,
             self.default_zero,
-            self.X
         )
 
     def hc(self):
@@ -601,11 +598,11 @@ class VecOperator:
         return self.action.keys()
 
     def get(self, key, default):
-        return self.X * self.action.get(key, default)
+        return self.action.get(key, default)
 
     def __getitem__(self, b: BasisState):
         assert isinstance(b, BasisState)
-        return self.X * self.action.get(
+        return self.action.get(
             b,
             StateVec.zero(self.is_ketop) if self.default_zero \
                     else StateVec({b: 1.0 + 0.0j}, self.is_ketop)
@@ -613,10 +610,9 @@ class VecOperator:
 
     def __neg__(self):
         return VecOperator(
-            {b: s for b, s in self},
+            {b: -s for b, s in self.action.keys()},
             self.is_ketop,
             self.default_zero,
-            -self.X
         )
 
     def __add__(self, other: VecOperator | FuncOperator | Number):
@@ -628,10 +624,9 @@ class VecOperator:
         if isinstance(other, VecOperator):
             all_keys = set(self.keys()).union(set(other.keys()))
             return VecOperator(
-                {b: self[b] + other.X * other[b] for b in all_keys},
+                {b: self[b] + other[b] for b in all_keys},
                 self.is_ketop,
                 default_zero=True,
-                scalar=1.0 + 0.0j
             )
         elif isinstance(other, Number):
             return self.__add__(VecOperator.identity().__mul__(other))
@@ -686,14 +681,12 @@ class VecOperator:
                 {b: self.__mul__(other[b]) for b in all_keys},
                 self.is_ketop,
                 self.default_zero * other.default_zero,
-                self.X * other.X
             )
         elif isinstance(other, Number):
             return VecOperator(
-                self.action,
+                {b: s__mul__(other) for b, s in self.action.items()},
                 self.is_ketop,
                 self.default_zero,
-                self.X * other
             )
         else:
             return other.__rmul__(self)
@@ -717,14 +710,12 @@ class VecOperator:
                 {b: self.__rmul__(other[b]) for b in all_keys},
                 self.is_ketop,
                 other.default_zero * self.default_zero,
-                other.X * self.X
             )
         elif isinstance(other, Number):
             return VecOperator(
-                {b: self[b].__rmul__(other) for b in self.keys()},
+                {b: s.__rmul__(other) for b, s in self.action.keys()},
                 self.is_ketop,
                 self.default_zero,
-                other * self.X
             )
         else:
             return other.__mul__(self)
@@ -732,21 +723,27 @@ class VecOperator:
     def __truediv__(self, other: Number):
         assert isinstance(other, Number)
         return VecOperator(
-            self.action,
+            {b: s.__truediv__(other) for b, s in self.action.items()},
             self.is_ketop,
             self.default_zero,
-            self.X / other
         )
 
     def __iter__(self):
         return iter(self.action.items())
+
+    def __str__(self):
+        return "VecOperator({\n" \
+                + (
+                    "\n".join(f"{b} -> {s}"
+                    for b, s in self.action.items())
+                ) \
+                + f"\n}}, default_zero = {self.default_zero})"
 
     def relabeled(self, label_func):
         return VecOperator(
             {b.relabeled(label_func): s.relabeled(label_func) for b, s in self},
             self.is_ketop,
             self.default_zero,
-            self.X
         )
 
 class MatOperator:
@@ -795,7 +792,6 @@ class MatOperator:
             _action,
             self.is_ketop,
             default_zero=True,
-            scalar=1.0 + 0.0j
         )
 
     def to_sparse(self):
@@ -907,6 +903,12 @@ class MatOperator:
             self.is_ketop
         )
 
+    def __str__(self):
+        return "MatOperator(\n" \
+                + str(self.action) + "\n" \
+                + f"basis = {str(self.basis)}\n" \
+                + ")"
+
     def relabeled(self, label_func):
         return MatOperator(
             self.action,
@@ -971,7 +973,6 @@ class FuncOperator:
             {b: self.action(b) for b in basis},
             self.is_ketop,
             default_zero,
-            scalar=1.0 + 0.0j
         )
 
     def __neg__(self):
