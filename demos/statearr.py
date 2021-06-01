@@ -12,6 +12,11 @@ z_m = B[1].to_statearr(B) # |-z>
 y_p = (z_p + 1j * z_m) / np.sqrt(2) # |+y>
 y_m = (z_p - 1j * z_m).normalized() # |-y>
 
+# create some regular spin operators
+S_z = lib.MatOperator(np.array([[1, 0], [0, -1]]) / 2, B)
+S_x = lib.MatOperator(np.array([[0, 1], [1, 0]]) / 2, B)
+S_y = lib.MatOperator(np.array([[0, -1j], [1j, 0]]) / 2, B)
+
 # StateVecs print out in Dirac notation
 print("PRINTING")
 print("|+z> =")
@@ -36,13 +41,12 @@ print("<-z|-y> =", z_m.hc() * y_m)
 
 print("")
 
-# create some operators -- these don't print out prettily
-S_z = lib.MatOperator(np.array([[1, 0], [0, -1]]), B)
-S_x = lib.MatOperator(np.array([[0, 1], [1, 0]]), B)
-S_y = lib.MatOperator(np.array([[0, -1j], [1j, 0]]), B)
-
 # do some math
 print("OPERATOR MATH")
+print("S_z =")
+print(S_z)
+print("S_z * S_y =")
+print(S_z * S_y)
 print("S_z |+z> =")
 print(S_z * z_p)
 print("S_x |+z> =")
