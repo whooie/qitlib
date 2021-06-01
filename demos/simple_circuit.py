@@ -28,7 +28,7 @@ print(U.action)
 output = C.run(stepwise=True, kind="vec")
 
 # stick the measurements in a histogram
-fig, ax = output.get_hist(density=True, fractional=False)
-pp.savefig("output/test_circuit_output.png")
-pp.close(fig)
+output.get_hist(density=True, fractional=False) \
+    .savefig("output/test_circuit_output.png") \
+    .close()
 
