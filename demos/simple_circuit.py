@@ -21,8 +21,8 @@ C = lib.Circuit(
 C.to_file("output/test_circuit.txt")
 
 # can "compile" the circuit to a single unitary
-U = C.generate(kind="mat")
-print(U.action)
+U = C.generate(kind="vec")
+print(U)
 
 # run the circuit gate-by-gate with VecOperators
 output = C.run(stepwise=True, kind="vec")
