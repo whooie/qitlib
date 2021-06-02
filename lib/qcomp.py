@@ -67,7 +67,7 @@ def _hadamard_vecop(n: int, k: int):
             s0: StateVec({s0: +1/np.sqrt(2), s1: +1/np.sqrt(2)}, is_ket=True),
             s1: StateVec({s0: +1/np.sqrt(2), s1: -1/np.sqrt(2)}, is_ket=True)
         })
-    return VecOperator(_action, default_zero=False, is_ketop=True, scalar=1.0)
+    return VecOperator(_action, default_zero=False, is_ketop=True)
 
 def _hadamard_mat(n: int, k: int, sparse: bool=False):
     if n is None:
@@ -126,7 +126,7 @@ def _phase_vecop(n: int, k: int, theta: float):
             s0: StateVec({s0: 1.0 + 0.0j}, is_ket=True),
             s1: StateVec({s1: np.exp(1.0j * theta)}, is_ket=True)
         })
-    return VecOperator(_action, default_zero=False, is_ketop=True, scalar=1.0)
+    return VecOperator(_action, default_zero=False, is_ketop=True)
 
 def _phase_mat(n: int, k: int, theta: float, sparse: bool=False):
     if n is None:
@@ -181,7 +181,7 @@ def _cnot_vecop(n: int, k1: int, k2: int):
         s1 = BasisState(I[:j1] + b[0] + I[j1 + 1:j2] + b[1] + I[j2 + 1:])
         s2 = BasisState(I[:j1] + B[0] + I[j1 + 1:j2] + B[1] + I[j2 + 1:])
         _action.update({s1: s2, s2: s1})
-    return VecOperator(_action, default_zero=False, is_ketop=True, scalar=1.0)
+    return VecOperator(_action, default_zero=False, is_ketop=True)
 
 def _cnot_mat(n: int, k1: int, k2: int, sparse: bool=False):
     assert k1 != k2
@@ -298,7 +298,7 @@ def _xymodN_vecop(n: int, k: int, q: int, x: int, N: int):
         else:
             s2 = s1
         _action[s1] = StateVec({s2: 1.0 + 0.0j}, is_ket=True)
-    return VecOperator(_action, default_zero=False, is_ketop=True, scalar=1.0)
+    return VecOperator(_action, default_zero=False, is_ketop=True)
 
 def _xymodN_mat(n: int, k: int, q: int, x: int, N: int, sparse: bool=False):
     assert 2**q >= N
@@ -371,7 +371,7 @@ def _cxymodN_vecop(n: int, k1: int, k2: int, q: int, x: int, N: int):
         else:
             s2 = s1
         _action[s1] = StateVec({s2: 1.0 + 0.0j}, is_ket=True)
-    return VecOperator(_action, default_zero=False, is_ketop=True, scalar=1.0)
+    return VecOperator(_action, default_zero=False, is_ketop=True)
 
 def _cxymodN_mat(n: int, k1: int, k2: int, q: int, x: int, N: int,
         sparse: bool=False):

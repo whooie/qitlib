@@ -146,7 +146,7 @@ class StateVec:
                 if a != 0:
                     _components[b] = _components[b] + a \
                             if b in _components.keys() else a
-                    if _components[b] == 0:
+                    if abs(_components[b]) <= 1e-12:
                         del _components[b]
         return StateVec(_components, _is_ket)
 
@@ -266,11 +266,11 @@ class StateVec:
         if len(self) == 0:
             return "0"
         else:
-            return " + ".join(f"({a:g})" \
+            return " + ".join(f"({a:+.5f})" \
                     + ("|" if self.is_ket else "<") \
                     + f"{b.label}" \
                     + (">" if self.is_ket else "|")
-                for b, a in self if a != 0
+                for b, a in self if abs(a) > 1e-12
             )
 
     def __repr__(self):
