@@ -685,8 +685,7 @@ class VecOperator:
             return VecOperator(
                 {b: self.__mul__(other[b]) for b in all_keys},
                 self.is_ketop,
-                self.default_zero * other.default_zero,
-                self.X * other.X
+                self.default_zero and other.default_zero,
             )
         elif isinstance(other, Number):
             return VecOperator(
@@ -716,8 +715,7 @@ class VecOperator:
             return VecOperator(
                 {b: self.__rmul__(other[b]) for b in all_keys},
                 self.is_ketop,
-                other.default_zero * self.default_zero,
-                other.X * self.X
+                other.default_zero and self.default_zero,
             )
         elif isinstance(other, Number):
             return VecOperator(
@@ -907,6 +905,11 @@ class MatOperator:
             self.is_ketop
         )
 
+    def __str__(self):
+        return "MatOperator(\n" \
+                + str(self.action) + "\n" \
+                + f") basis = {str(self.basis)}"
+
     def relabeled(self, label_func):
         return MatOperator(
             self.action,
@@ -921,7 +924,7 @@ class FuncOperator:
     as a Python function. Interacts only with all `*Operator`s and `StateVec`s.
 
     Functions must have the signature
-        action(BasisState) -> StateVec(is_ket=True)
+        action(BasisState) -> StateVec(is_ket=is_ketop)
     upon construction using __init__. Combinations of `FuncOperator`s with other
     `*Operator`s are created by composing function calls (and always return new
     `FuncOperator`s), so be wary of having too many such interactions.
@@ -933,8 +936,7 @@ class FuncOperator:
     @staticmethod
     def identity(is_ketop=True):
         return FuncOperator(
-            (lambda b: StateVec({b: 1.0 + 0.0j})) if is_ketop \
-                    else (lambda b: StateVec({b: 1.0 + 0.0j}, is_ket=False)),
+            lambda b: StateVec({b: 1.0 + 0.0j}, is_ketop),
             is_ketop
         )
 
