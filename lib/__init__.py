@@ -32,7 +32,7 @@ from .shor import \
         shor_semiclassical, \
         shor_quantum
 
-import lib.phys
-import lib.plotdefs
-import lib.misc
+#import lib.phys
+#import lib.plotdefs
+#import lib.misc
 
