@@ -126,7 +126,7 @@ class StateVec:
     """
     def __init__(self, components: dict[BasisState, complex],
             is_ket: bool=True):
-        self.components = components
+        self.components = {b: complex(a) for b, a in components.items()}
         self.is_ket = is_ket
 
     @staticmethod
@@ -144,8 +144,8 @@ class StateVec:
         for S in components:
             for b, a in S:
                 if a != 0:
-                    _components[b] = _components[b] + a \
-                            if b in _components.keys() else a
+                    _components[b] = _components[b] + complex(a) \
+                            if b in _components.keys() else complex(a)
                     if abs(_components[b]) <= 1e-12:
                         del _components[b]
         return StateVec(_components, _is_ket)
