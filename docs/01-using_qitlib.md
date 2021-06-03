@@ -101,15 +101,59 @@ return only one `StateVec` whose `.is_ket` field must have the same value as the
 `.is_ketop` field of the operator).
 
 ## 4 Circuits
-
+The ultimate goal of `qitlib` is to simulate simple quantum circuits. Circuits
+are implemented as a list of gates and associated arguments (e.g. which qubit
+the gate is acting on, phase rotation angles) with the initial state. At
+runtime, the list is "compiled" to either a single unitary operator or a list of
+`*Operator` objects (again, the difference comes down to computational
+performance details) and naively applied to the initial state.
 
 ### 4.1 Atomic and non-atomic gates
+With the exception of two gates relevant to the implementation of Shor's
+algorithm, `qitlib` implements only the Hadamard, phase-shift, and CNOT
+universal gate set atomically (every gate supported by `qitlib` is written in
+terms of these three gates, except for the two Shor's algorithm gates). Below is
+a list of supported gates:
+
+| Gate symbol | Description                               | Atomic |
+|:------------|:------------------------------------------|:-------|
+| H           | Hadamard                                  | Yes    |
+| P           | conditional phase shift                   | Yes    |
+| CP          | controlled conditional phase shift        | No     |
+| NOT         | logical NOT                               | No     |
+| CNOT        | controlled logical NOT                    | Yes    |
+| RZ          | z-axis rotation                           | No     |
+| CRZ         | controlled z-axis rotation                | No     |
+| SWAP        | two-qubit swap                            | No     |
+| QFT         | n-qubit quantum Fourier transform         | No     |
+| IQFT        | n-qubit inverse quantum Fourier transform | No     |
+| REVERSE     | n-qubit order reversal                    | No     |
+| FUNC\*      | classical function                        | No     |
+| CFUNC\*     | controlled classical function             | No     |
+
+\* *Used for Shor's algorithm*
+
+Circuits can also be expanded out in terms of H/P/CNOT gates.
 
 ### 4.2 Reading and writing circuit files
+Although the preferred way of creating `Circuit`s is directly through the
+`__init__` constructor method, they may also be specified in a text file
+following a simple syntax to be read by the program with `Circuit.from_file()`.
+A constructed `Circuit` can also write its contents to a file (following the
+same format) with `.to_file()`. Example files can be found in the `demos/output`
+folder.
 
 ### 4.3 Circuit output
+Running a circuit returns a `CircuitOutput` object that holds the final state
+along with a list of values sampled from it in the computational basis. These
+values can then be used to generate a histogram through a `matplotlib` backend
+with `.get_hist()`.
 
 ### 4.4 Drawing circuits
+*This feature is yet to be implemented.*
+
+## Examples
+Examples using this library can be found in the `demos` folder.
 
 [1]: https://qiskit.org/
 
