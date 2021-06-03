@@ -180,7 +180,10 @@ def _cnot_vecop(n: int, k1: int, k2: int):
         I = i2b(i, n)
         s1 = BasisState(I[:j1] + b[0] + I[j1 + 1:j2] + b[1] + I[j2 + 1:])
         s2 = BasisState(I[:j1] + B[0] + I[j1 + 1:j2] + B[1] + I[j2 + 1:])
-        _action.update({s1: s2, s2: s1})
+        _action.update({
+            s1: StateVec({s2: 1.0 + 0.0j}),
+            s2: StateVec({s1: 1.0 + 0.0j})
+        })
     return VecOperator(_action, default_zero=False, is_ketop=True)
 
 def _cnot_mat(n: int, k1: int, k2: int, sparse: bool=False):
@@ -882,7 +885,7 @@ class Circuit:
                             raise Exception("Invalid INITSTATE source")
                     else:
                         raise Exception("Invalid INITSTATE source")
-                elif largs[0] == "WIRES" and len(largs) >= 2:
+                elif largs[0] in {"WIRES", "NWIRES"} and len(largs) >= 2:
                     nwires = int(largs[1])
                     initial_state = (
                         StateVec.from_primitives((1.0 + 0.0j, nwires * "0"))
@@ -1005,7 +1008,7 @@ class Circuit:
         """
         target = pathlib.Path(outfilename)
         outfile = target.open('w')
-        outfile.write(f"{self.nwires}\n")
+        outfile.write(f"NWIRES {self.nwires}\n")
         if len(S := self.initial_state.to_statevec()) > 1:
             starget = target.parent.joinpath(target.stem + "_initstate.txt")
             with starget.open('w') as sfile:
