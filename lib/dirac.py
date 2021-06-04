@@ -1233,7 +1233,8 @@ def draw_bloch_interactive(pole_labels: list[str, str]):
     theta_slider.valtext.set_fontsize("small")
     phi_slider_ax = P.fig.add_axes([0.25, 0.05, 0.5, 0.02],
         facecolor="#e0e0e0")
-    phi_slider = wig.Slider(phi_slider_ax, "$\\varphi$", 0, 2*np.pi, valinit=0)
+    phi_slider = wig.Slider(phi_slider_ax, "$\\varphi$", -2*np.pi, 2*np.pi,
+        valinit=0)
     phi_slider.label.set_fontsize("small")
     phi_slider.valtext.set_fontsize("small")
     _draw_bloch_state(1.0, 0.0, 0.0, P)
