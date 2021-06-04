@@ -5,7 +5,9 @@ from .dirac import \
         StateArr, \
         VecOperator, \
         MatOperator, \
-        FuncOperator
+        FuncOperator, \
+        draw_bloch_interactive, \
+        draw_state_interactive
 
 from .qcomp import \
         Circuit, \
