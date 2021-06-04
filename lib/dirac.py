@@ -2,6 +2,7 @@ from __future__ import annotations
 import numpy as np
 import scipy.sparse as sp
 import matplotlib.pyplot as pp
+import matplotlib.widgets as wig
 import lib.plotdefs as pd
 import random
 import copy
@@ -148,7 +149,7 @@ class StateVec:
                 if a != 0:
                     _components[b] = _components[b] + complex(a) \
                             if b in _components.keys() else complex(a)
-                    if abs(_components[b]) <= 1e-12:
+                    if abs(_components[b]) == 0:
                         del _components[b]
         return StateVec(_components, _is_ket)
 
@@ -1158,8 +1159,8 @@ class FuncOperator:
         return FuncOperator(lambda s: self.action(s).relabeled(label_func))
 
 def _gen_bloch_sphere(pole_labels: list[str, str]) -> pd.Plotter:
-    th = np.linspace(0, np.pi, 100)
-    ph = np.linspace(0, 2 * np.pi, 100)
+    th = np.linspace(0, np.pi, 50)
+    ph = np.linspace(0, 2 * np.pi, 50)
     TH, PH = np.meshgrid(th, ph)
     X = np.sin(TH) * np.cos(PH)
     Y = np.sin(TH) * np.sin(PH)
@@ -1208,19 +1209,52 @@ def _draw_bloch(alpha: complex, beta: complex, is_ket: bool, P: pd.Plotter) \
     theta = 2 * np.arccos(abs(alpha_))
     R = min(1, N)
 
+    _draw_bloch_state(R, theta, phi, P)
+    return P
+
+def _draw_bloch_state(R: float, theta: float, phi: float, P: pd.Plotter):
+    x = R * np.sin(theta) * np.cos(phi)
+    y = R * np.sin(theta) * np.sin(phi)
+    z = R * np.cos(theta)
     P \
-        .quiver(
-            [0], [0], [0],
-            [R * np.sin(theta) * np.cos(phi)],
-            [R * np.sin(theta) * np.sin(phi)],
-            [R * np.cos(theta)],
+        .quiver([0], [0], [0], [x], [y], [z],
             color="k", linewidth=0.65, arrow_length_ratio=0.1
         ) \
-        .scatter(
-            [R * np.sin(theta) * np.cos(phi)],
-            [R * np.sin(theta) * np.sin(phi)],
-            [R * np.cos(theta)],
-            color="C0", s=1
-        )
-    return P
+        .scatter([x], [y], [z], color="C0", s=1)
+
+def draw_bloch_interactive(pole_labels: list[str, str]):
+    P = _gen_bloch_sphere(pole_labels)
+    P.fig.subplots_adjust(bottom=0.35)
+
+    theta_slider_ax = P.fig.add_axes([0.25, 0.12, 0.5, 0.02],
+        facecolor="#e0e0e0")
+    theta_slider = wig.Slider(theta_slider_ax, "$\\theta$", 0, np.pi, valinit=0)
+    theta_slider.label.set_fontsize("small")
+    theta_slider.valtext.set_fontsize("small")
+    phi_slider_ax = P.fig.add_axes([0.25, 0.05, 0.5, 0.02],
+        facecolor="#e0e0e0")
+    phi_slider = wig.Slider(phi_slider_ax, "$\\varphi$", 0, 2*np.pi, valinit=0)
+    phi_slider.label.set_fontsize("small")
+    phi_slider.valtext.set_fontsize("small")
+    _draw_bloch_state(1.0, 0.0, 0.0, P)
+    def sliders_on_changed(val):
+        P.outputs.pop().remove()
+        P.outputs.pop().remove()
+        _draw_bloch_state(1.0, theta_slider.val, phi_slider.val, P)
+        P.fig.canvas.draw_idle()
+    theta_slider.on_changed(sliders_on_changed)
+    phi_slider.on_changed(sliders_on_changed)
+
+    reset_button_ax = P.fig.add_axes([0.25, 0.9, 0.1618*2/3, 0.1*2/3])
+    reset_button = wig.Button(reset_button_ax, "Reset",
+        color="white", hovercolor="#e0e0e0")
+    reset_button.label.set_fontsize("xx-small")
+    def reset_button_on_clicked(mouse_event):
+        theta_slider.reset()
+        phi_slider.reset()
+    reset_button.on_clicked(reset_button_on_clicked)
+    P.show()
+
+def draw_state_interactive(pole_labels: list[str, str]):
+    draw_bloch_interactive(pole_labels)
 
