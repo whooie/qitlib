@@ -355,14 +355,6 @@ class StateVec:
             b0, b1 = levels
             alpha = complex(self.get(b0, 0.0 + 0.0j))
             beta = complex(self.get(b1, 0.0 + 0.0j))
-        N = np.sqrt(abs(alpha)**2 + abs(beta)**2)
-        alpha_ = alpha / N
-        beta_ = beta / N
-        phi0 = np.arctan2(alpha_.imag, alpha_.real)
-        phi1 = np.arctan2(beta_.imag, beta_.real)
-        phi = phi1 - phi0
-        theta = 2 * np.arccos(abs(alpha_))
-
         l = "|" if self.is_ket else "\\rangle"
         r = "\\rangle" if self.is_ket else "|"
         if plotter is None:
@@ -372,21 +364,7 @@ class StateVec:
             ])
         else:
             P = plotter
-        P \
-            .quiver(
-                [0], [0], [0],
-                [np.sin(theta) * np.cos(phi)],
-                [np.sin(theta) * np.sin(phi)],
-                [np.cos(theta)],
-                color="k", linewidth=0.65, arrow_length_ratio=0.1
-            ) \
-            .scatter(
-                [np.sin(theta) * np.cos(phi)],
-                [np.sin(theta) * np.sin(phi)],
-                [np.cos(theta)],
-                color="C0", s=1
-            )
-        return P
+        return _draw_bloch(alpha, beta, self.is_ket, P)
 
 class StateArr:
     """
@@ -627,14 +605,6 @@ class StateArr:
                     if b0 in self.basis else (0.0 + 0.0j)
             beta = self.components[self.basis.index(b1)] \
                     if b1 in self.basis else (0.0 + 0.0j)
-        N = np.sqrt(abs(alpha)**2 + abs(beta)**2)
-        alpha_ = alpha / N
-        beta_ = beta / N
-        phi0 = np.arctan2(alpha_.imag, alpha_.real)
-        phi1 = np.arctan2(beta_.imag, beta_.real)
-        phi = phi1 - phi0
-        theta = 2 * np.arccos(abs(alpha_))
-
         l = "|" if self.is_ket else "\\rangle"
         r = "\\rangle" if self.is_ket else "|"
         if plotter is None:
@@ -644,21 +614,7 @@ class StateArr:
             ])
         else:
             P = plotter
-        P \
-            .quiver(
-                [0], [0], [0],
-                [np.sin(theta) * np.cos(phi)],
-                [np.sin(theta) * np.sin(phi)],
-                [np.cos(theta)],
-                color="k", linewidth=0.65, arrow_length_ratio=0.1
-            ) \
-            .scatter(
-                [np.sin(theta) * np.cos(phi)],
-                [np.sin(theta) * np.sin(phi)],
-                [np.cos(theta)],
-                color="C0", s=1
-            )
-        return P
+        return _draw_bloch(alpha, beta, self.is_ket, P)
 
 class VecOperator:
     """
@@ -1224,6 +1180,9 @@ def _gen_bloch_sphere(pole_labels: list[str, str]) -> pd.Plotter:
         .plot([0, 0], [0, 0], [-1, +1], color="#e8e8e8", linestyle=":",
             linewidth=0.5) \
         .scatter([0], [0], [0], color="k", s=1) \
+        .scatter([1], [0], [0], color="#e8e8e8", s=0.5) \
+        .scatter([0], [1], [0], color="#e8e8e8", s=0.5) \
+        .scatter([0], [0], [1], color="#e8e8e8", s=0.5) \
         .set_box_aspect((1, 1, 1)) \
         .axis("off") \
         .text(0, 0, +1.1, pole_labels[0],
@@ -1235,6 +1194,33 @@ def _gen_bloch_sphere(pole_labels: list[str, str]) -> pd.Plotter:
             horizontalalignment="center",
             verticalalignment="top",
             fontsize="x-small"
+        )
+    return P
+
+def _draw_bloch(alpha: complex, beta: complex, is_ket: bool, P: pd.Plotter) \
+        -> pd.Plotter:
+    N = np.sqrt(abs(alpha)**2 + abs(beta)**2)
+    alpha_ = alpha / N
+    beta_ = beta / N
+    phi0 = np.arctan2(alpha_.imag, alpha_.real)
+    phi1 = np.arctan2(beta_.imag, beta_.real)
+    phi = phi1 - phi0
+    theta = 2 * np.arccos(abs(alpha_))
+    R = min(1, N)
+
+    P \
+        .quiver(
+            [0], [0], [0],
+            [R * np.sin(theta) * np.cos(phi)],
+            [R * np.sin(theta) * np.sin(phi)],
+            [R * np.cos(theta)],
+            color="k", linewidth=0.65, arrow_length_ratio=0.1
+        ) \
+        .scatter(
+            [R * np.sin(theta) * np.cos(phi)],
+            [R * np.sin(theta) * np.sin(phi)],
+            [R * np.cos(theta)],
+            color="C0", s=1
         )
     return P
 
