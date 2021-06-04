@@ -290,7 +290,8 @@ class Plotter:
     @staticmethod
     def new_3d(*args, **kwargs):
         fig = pp.figure(*args, **kwargs)
-        ax = p3.Axes3D(fig)
+        ax = p3.Axes3D(fig, auto_add_to_figure=False)
+        fig.add_axes(ax)
         return Plotter(fig=fig, ax=ax)
 
     @staticmethod
