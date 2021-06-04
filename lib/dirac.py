@@ -56,6 +56,42 @@ class BasisState:
     def __repr__(self):
         return f"BasisState(`{self.label}`)"
 
+    def __gt__(self, other):
+        if isinstance(other, BasisState):
+            return self.label > other.label
+        else:
+            raise NotImplemented
+
+    def __ge__(self, other):
+        if isinstance(other, BasisState):
+            return self.label >= other.label
+        else:
+            raise NotImplemented
+
+    def __lt__(self, other):
+        if isinstance(other, BasisState):
+            return self.label < other.label
+        else:
+            raise NotImplemented
+
+    def __le__(self, other):
+        if isinstance(other, BasisState):
+            return self.label <= other.label
+        else:
+            raise NotImplemented
+
+    def __eq__(self, other):
+        if isinstance(other, BasisState):
+            return self.label == other.label
+        else:
+            raise NotImplemented
+
+    def __neq__(self, other):
+        if isinstance(other, BasisState):
+            return self.label != other.label
+        else:
+            raise NotImplemented
+
     def to_statevec(self, is_ket: bool=True):
         return StateVec({self: 1.0 + 0.0j}, is_ket)
 
