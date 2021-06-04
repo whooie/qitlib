@@ -1,6 +1,8 @@
 from __future__ import annotations
 import numpy as np
 import scipy.sparse as sp
+import matplotlib.pyplot as pp
+import lib.plotdefs as pd
 import random
 import copy
 
@@ -204,6 +206,9 @@ class StateVec:
         assert isinstance(state, BasisState)
         return self.components.get(state, 0.0 + 0.0j)
 
+    def __contains__(self, key):
+        return key in self.components
+
     def __neg__(self):
         return StateVec({b: a.__neg__() for b, a in self}, self.is_ket)
 
@@ -333,6 +338,56 @@ class StateVec:
                 B = b
         return B
 
+    def draw(self, levels: list[BasisState]=None, plotter: pd.Plotter=None):
+        """
+        Draw the Bloch-sphere representation of self. Requires that self be a
+        superposition of a two-level system or that `levels` be specified with
+        two `BasisState`s.
+        """
+        if levels is None:
+            assert len(self) == 2
+            b0, b1 = sorted(self.keys())
+            alpha = complex(self[b0])
+            beta = complex(self[b1])
+        else:
+            assert len(levels) == 2
+            assert sum(map(lambda b: b in self, levels)) > 0
+            b0, b1 = levels
+            alpha = complex(self.get(b0, 0.0 + 0.0j))
+            beta = complex(self.get(b1, 0.0 + 0.0j))
+        N = np.sqrt(abs(alpha)**2 + abs(beta)**2)
+        alpha_ = alpha / N
+        beta_ = beta / N
+        phi0 = np.arctan2(alpha_.imag, alpha_.real)
+        phi1 = np.arctan2(beta_.imag, beta_.real)
+        phi = phi1 - phi0
+        theta = 2 * np.arccos(abs(alpha_))
+
+        l = "|" if self.is_ket else "\\rangle"
+        r = "\\rangle" if self.is_ket else "|"
+        if plotter is None:
+            P = _gen_bloch_sphere([
+                "$\\left" + l + b.label + "\\right" + r + "$"
+                for b in [b0, b1]
+            ])
+        else:
+            P = plotter
+        P \
+            .quiver(
+                [0], [0], [0],
+                [np.sin(theta) * np.cos(phi)],
+                [np.sin(theta) * np.sin(phi)],
+                [np.cos(theta)],
+                color="k", linewidth=0.65, arrow_length_ratio=0.1
+            ) \
+            .scatter(
+                [np.sin(theta) * np.cos(phi)],
+                [np.sin(theta) * np.sin(phi)],
+                [np.cos(theta)],
+                color="C0", s=1
+            )
+        return P
+
 class StateArr:
     """
     Quantum state represented as a collection of complex amplitudes giving a
@@ -408,6 +463,12 @@ class StateArr:
             )
         else:
             return self
+
+    def __getitem__(self, idx):
+        return self.components[idx]
+
+    def __contains__(self, b):
+        return b in self.basis
 
     def __neg__(self):
         return StateArr(self.components.__neg__(), self.basis, self.is_ket)
@@ -547,6 +608,57 @@ class StateArr:
         Return the most probable result of a single measurement.
         """
         return self.basis[np.argmax(np.abs(self.components)**2)]
+
+    def draw(self, levels: list[BasisState]=None, plotter: pd.Plotter=None):
+        """
+        Draw the Bloch-sphere representation of self. Requires that self be a
+        superposition of a two-level system or that `levels` be specified with
+        two `BasisState`s.
+        """
+        if levels is None:
+            assert len(self) == 2
+            b0, b1 = self.basis
+            alpha, beta = self.components[0], self.components[1]
+        else:
+            assert len(levels) == 2
+            assert sum(map(lambda b: b in self.basis, levels)) > 0
+            b0, b1 = levels
+            alpha = self.components[self.basis.index(b0)] \
+                    if b0 in self.basis else (0.0 + 0.0j)
+            beta = self.components[self.basis.index(b1)] \
+                    if b1 in self.basis else (0.0 + 0.0j)
+        N = np.sqrt(abs(alpha)**2 + abs(beta)**2)
+        alpha_ = alpha / N
+        beta_ = beta / N
+        phi0 = np.arctan2(alpha_.imag, alpha_.real)
+        phi1 = np.arctan2(beta_.imag, beta_.real)
+        phi = phi1 - phi0
+        theta = 2 * np.arccos(abs(alpha_))
+
+        l = "|" if self.is_ket else "\\rangle"
+        r = "\\rangle" if self.is_ket else "|"
+        if plotter is None:
+            P = _gen_bloch_sphere([
+                "$\\left" + l + b.label + "\\right" + r + "$"
+                for b in [b0, b1]
+            ])
+        else:
+            P = plotter
+        P \
+            .quiver(
+                [0], [0], [0],
+                [np.sin(theta) * np.cos(phi)],
+                [np.sin(theta) * np.sin(phi)],
+                [np.cos(theta)],
+                color="k", linewidth=0.65, arrow_length_ratio=0.1
+            ) \
+            .scatter(
+                [np.sin(theta) * np.cos(phi)],
+                [np.sin(theta) * np.sin(phi)],
+                [np.cos(theta)],
+                color="C0", s=1
+            )
+        return P
 
 class VecOperator:
     """
@@ -1088,4 +1200,41 @@ class FuncOperator:
 
     def relabeled(self, label_func):
         return FuncOperator(lambda s: self.action(s).relabeled(label_func))
+
+def _gen_bloch_sphere(pole_labels: list[str, str]) -> pd.Plotter:
+    th = np.linspace(0, np.pi, 100)
+    ph = np.linspace(0, 2 * np.pi, 100)
+    TH, PH = np.meshgrid(th, ph)
+    X = np.sin(TH) * np.cos(PH)
+    Y = np.sin(TH) * np.sin(PH)
+    Z = np.cos(TH)
+
+    P = pd.Plotter.new_3d() \
+        .plot_surface(X, Y, Z, alpha=0.25, color="#f0f0f0") \
+        .plot(np.cos(ph), np.sin(ph), np.zeros(ph.shape),
+            color="#e8e8e8", linewidth=0.5) \
+        .plot(np.sin(ph), np.zeros(ph.shape), np.cos(ph),
+            color="#e8e8e8", linewidth=0.5) \
+        .plot(np.zeros(ph.shape), np.sin(ph), np.cos(ph),
+            color="#e8e8e8", linewidth=0.5) \
+        .plot([-1, +1], [0, 0], [0, 0], color="#e8e8e8", linestyle=":",
+            linewidth=0.5) \
+        .plot([0, 0], [-1, +1], [0, 0], color="#e8e8e8", linestyle=":",
+            linewidth=0.5) \
+        .plot([0, 0], [0, 0], [-1, +1], color="#e8e8e8", linestyle=":",
+            linewidth=0.5) \
+        .scatter([0], [0], [0], color="k", s=1) \
+        .set_box_aspect((1, 1, 1)) \
+        .axis("off") \
+        .text(0, 0, +1.1, pole_labels[0],
+            horizontalalignment="center",
+            verticalalignment="bottom",
+            fontsize="x-small"
+        ) \
+        .text(0, 0, -1.1, pole_labels[1],
+            horizontalalignment="center",
+            verticalalignment="top",
+            fontsize="x-small"
+        )
+    return P
 

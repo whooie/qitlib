@@ -224,8 +224,14 @@ def opacity(i, N, m=0.2, p=2):
 def dot_dash(n):
     return n * [1, 1] + [8, 1]
 
-def sl(start=None, stop=None, step=None):
-    return slice(start, stop, step)
+class Slicer:
+    def __init__(self):
+        return
+
+    def __getitem__(self, slice):
+        return slice
+
+S = Slicer()
 
 class Plots:
     def __init__(self, plots):
@@ -282,6 +288,12 @@ class Plotter:
             return Plotter(fig=fig, ax=ax)
 
     @staticmethod
+    def new_3d(*args, **kwargs):
+        fig = pp.figure(*args, **kwargs)
+        ax = p3.Axes3D(fig)
+        return Plotter(fig=fig, ax=ax)
+
+    @staticmethod
     def new_gridspec(gridspec_kw, pos, *args, **kwargs):
         fig = kwargs.get("fig", pp.figure(*args, **kwargs))
         gs = fig.add_gridspec(**gridspec_kw)
@@ -312,6 +324,16 @@ class Plotter:
 
     def plot(self, *args, **kwargs):
         X = self.ax.plot(*args, **kwargs)
+        self.outputs.append(X)
+        return self
+
+    def plot_surface(self, *args, **kwargs):
+        X = self.ax.plot_surface(*args, **kwargs)
+        self.outputs.append(X)
+        return self
+
+    def plot_trisurf(self, *args, **kwargs):
+        X = self.ax.plot_trisurf(*args, **kwargs)
         self.outputs.append(X)
         return self
 
@@ -618,6 +640,16 @@ class Plotter:
 
     def tight_layout(self, *args, **kwargs):
         X = self.fig.tight_layout(*args, **kwargs)
+        self.outputs.append(X)
+        return self
+
+    def set_box_aspect(self, *args, **kwargs):
+        X = self.ax.set_box_aspect(*args, **kwargs)
+        self.outputs.append(X)
+        return self
+
+    def axis(self, *args, **kwargs):
+        X = self.ax.axis(*args, **kwargs)
         self.outputs.append(X)
         return self
 
