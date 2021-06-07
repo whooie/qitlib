@@ -1217,9 +1217,9 @@ def _gen_bloch_sphere(pole_labels: list[str, str]) -> pd.Plotter:
         .plot([0, 0], [0, 0], [-1, +1], color="#e8e8e8", linestyle=":",
             linewidth=0.5) \
         .scatter([0], [0], [0], color="k", s=1) \
-        .scatter([1], [0], [0], color="#e8e8e8", s=0.5) \
-        .scatter([0], [1], [0], color="#e8e8e8", s=0.5) \
-        .scatter([0], [0], [1], color="#e8e8e8", s=0.5) \
+        .scatter([1], [0], [0], color="#e0e0e0", s=0.5) \
+        .scatter([0], [1], [0], color="#e0e0e0", s=0.5) \
+        .scatter([0], [0], [1], color="#e0e0e0", s=0.5) \
         .set_box_aspect((1, 1, 1)) \
         .axis("off") \
         .text(0, 0, +1.1, pole_labels[0],
@@ -1253,8 +1253,12 @@ def _draw_bloch_state(R: float, theta: float, phi: float, P: pd.Plotter):
     y = R * np.sin(theta) * np.sin(phi)
     z = R * np.cos(theta)
     P \
-        .quiver([0], [0], [0], [x], [y], [z],
-            color="k", linewidth=0.65, arrow_length_ratio=0.1
+        .quiver(
+            [0], [0], [0], [x], [y], [z],
+            color="k",
+            linewidth=0.65,
+            arrow_length_ratio=0.1,
+            capstyle="round"
         ) \
         .scatter([x], [y], [z], color="C0", s=1)
 
@@ -1262,22 +1266,44 @@ def draw_bloch_interactive(pole_labels: list[str, str]):
     P = _gen_bloch_sphere(pole_labels)
     P.fig.subplots_adjust(bottom=0.35)
 
-    theta_slider_ax = P.fig.add_axes([0.25, 0.12, 0.5, 0.02],
-        facecolor="#e0e0e0")
-    theta_slider = wig.Slider(theta_slider_ax, "$\\theta$", 0, np.pi, valinit=0)
-    theta_slider.label.set_fontsize("small")
-    theta_slider.valtext.set_fontsize("small")
-    phi_slider_ax = P.fig.add_axes([0.25, 0.05, 0.5, 0.02],
-        facecolor="#e0e0e0")
-    phi_slider = wig.Slider(phi_slider_ax, "$\\varphi$", -2*np.pi, 2*np.pi,
-        valinit=0)
-    phi_slider.label.set_fontsize("small")
-    phi_slider.valtext.set_fontsize("small")
+    theta_slider_ax = P.fig.add_axes(
+        [0.25, 0.12, 0.4, 0.02],
+        facecolor="#e0e0e0"
+    )
+    theta_slider = wig.Slider(
+        theta_slider_ax,
+        label="$\\theta$",
+        valmin=0,
+        valmax=1,
+        valinit=0,
+        valfmt="$%+.2f \\pi$"
+    )
+    theta_slider.label.set_fontsize("x-small")
+    theta_slider.valtext.set_fontsize("x-small")
+    phi_slider_ax = P.fig.add_axes(
+        [0.25, 0.05, 0.4, 0.02],
+        facecolor="#e0e0e0"
+    )
+    phi_slider = wig.Slider(
+        phi_slider_ax,
+        label="$\\varphi$",
+        valmin=-2,
+        valmax=+2,
+        valinit=0,
+        valfmt="$%+.2f \\pi$"
+    )
+    phi_slider.label.set_fontsize("x-small")
+    phi_slider.valtext.set_fontsize("x-small")
     _draw_bloch_state(1.0, 0.0, 0.0, P)
     def sliders_on_changed(val):
         P.outputs.pop().remove()
         P.outputs.pop().remove()
-        _draw_bloch_state(1.0, theta_slider.val, phi_slider.val, P)
+        _draw_bloch_state(
+            1.0,
+            theta_slider.val * np.pi,
+            phi_slider.val * np.pi,
+            P
+        )
         P.fig.canvas.draw_idle()
     theta_slider.on_changed(sliders_on_changed)
     phi_slider.on_changed(sliders_on_changed)
