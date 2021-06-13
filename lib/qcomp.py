@@ -54,7 +54,7 @@ def qubit_basis(n: int):
     Generate a `Basis` for `n` qubit wires.
     """
     return Basis(*[
-        BasisState(decstr_to_bitstr(str(k), n)) for k in range(2**n)
+        BasisState(int_to_bitstr(k, n)) for k in range(2**n)
     ])
 
 def _hadamard_vecop(n: int, k: int):

@@ -54,12 +54,12 @@ rcdefs = {
     "axes.titlesize"        : "medium",
     "errorbar.capsize"      : 1.0,
     "figure.dpi"            : 500.0,
-    "figure.figsize"        : [3.375, 2.100],
+    "figure.figsize"        : [3.375, 2.225],
     "font.size"             : 10,
     "grid.color"            : "#d8d8d8",
     "grid.linewidth"        : 0.5,
-    "image.composite_image" : False,
     "image.cmap"            : "bone",
+    "image.composite_image" : False,
     "legend.borderaxespad"  : 0.25,
     "legend.borderpad"      : 0.3,
     "legend.fancybox"       : False,
@@ -68,11 +68,12 @@ rcdefs = {
     "legend.handlelength"   : 1.2,
     "legend.handletextpad"  : 0.4,
     "legend.labelspacing"   : 0.25,
-    "lines.linewidth"       : 1.0,
-    "lines.markeredgewidth" : 1.0,
-    "lines.markersize"      : 2.5,
+    "lines.linewidth"       : 0.8,
+    "lines.markeredgewidth" : 0.8,
+    "lines.markersize"      : 2.0,
+    "markers.fillstyle"     : "none",
     "savefig.bbox"          : "tight",
-    "savefig.pad_inches"    : 0.01,
+    "savefig.pad_inches"    : 0.05,
     "text.latex.preamble"   : r"\usepackage{physics}\usepackage{siunitx}\usepackage{amsmath}",
     "xtick.direction"       : "in",
     "xtick.major.size"      : 2.0,
@@ -94,12 +95,45 @@ hot_cold_colors = [
 ]
 hot_cold = cm.LinearSegmentedColormap.from_list("hot-cold", hot_cold_colors)
 
+fire_ice_colors = [
+    (0.000, "#2165ac"),
+    (0.167, "#68a9cf"),
+    (0.333, "#d2e6f1"),
+    (0.500, "#f8f8f8"),
+    (0.667, "#ffdbc8"),
+    (0.833, "#f08a62"),
+    (1.000, "#b0172b"),
+]
+fire_ice = cm.LinearSegmentedColormap.from_list("fire-ice", fire_ice_colors)
+
+powerade_colors = [
+    (0.000, "#542689"),
+    (0.167, "#9a8dc2"),
+    (0.333, "#d9daec"),
+    (0.500, "#f8f8f8"),
+    (0.667, "#d2e6f1"),
+    (0.833, "#68a9cf"),
+    (1.000, "#2165ac"),
+]
+powerade = cm.LinearSegmentedColormap.from_list("powerade", powerade_colors)
+
+floral_colors = [
+    (0.000, "#35c9a5"),
+    (0.167, "#5cbea7"),
+    (0.333, "#80b4a8"),
+    (0.500, "#a8a8a8"),
+    (0.667, "#c2a1a8"),
+    (0.833, "#e099a9"),
+    (1.000, "#fd8fa8"),
+]
+floral = cm.LinearSegmentedColormap.from_list("floral", floral_colors)
+
 plasma_colors = [
     (0.000, "#000000"),
     (0.450, "#3b4568"),
     (0.600, "#586186"),
     (0.700, "#939cc4"),
-    (1.000, "#ffffff"),
+    (1.000, "#f8f8f8"),
 ]
 plasma = cm.LinearSegmentedColormap.from_list("plasma", plasma_colors)
 
@@ -170,6 +204,18 @@ pix_colors = [
     (1.000, "#ffecd6"),
 ]
 pix = cm.LinearSegmentedColormap.from_list("pix", pix_colors)
+
+colormaps = {
+    "hot-cold"  : hot_cold,
+    "fire-ice"  : fire_ice,
+    "powerade"  : powerade,
+    "floral"    : floral,
+    "plasma"    : plasma,
+    "cyborg"    : cyborg,
+    "vibrant"   : vibrant,
+    "artsy"     : artsy,
+    "pix"       : pix,
+}
 
 def figure3D(*fig_args, **fig_kwargs):
     fig = pp.figure(*fig_args, **fig_kwargs)
@@ -244,7 +290,8 @@ class Plots:
 
     def tight_layout(self, *args, **kwargs):
         X = self.fig.tight_layout(*args, **kwargs)
-        self.outputs.append(X)
+        for p in self.plots:
+            p.outputs.append(X)
         return self
 
     def savefig(self, *args, **kwargs):
@@ -283,7 +330,7 @@ class Plotter:
         else:
             fig, ax = kwargs["fig"], kwargs["ax"]
         if isinstance(ax, (np.ndarray, list, tuple)):
-            return [Plotter(fig=fig, ax=a) for a in ax]
+            return Plots([Plotter(fig=fig, ax=a) for a in ax])
         else:
             return Plotter(fig=fig, ax=ax)
 
@@ -299,7 +346,7 @@ class Plotter:
         fig = kwargs.get("fig", pp.figure(*args, **kwargs))
         gs = fig.add_gridspec(**gridspec_kw)
         ax = [fig.add_subplot(gs[p]) for p in plots]
-        return [Plotter(fig=fig, ax=a) for a in ax]
+        return Plots([Plotter(fig=fig, ax=a) for a in ax])
 
     def twinx(self, *args, **kwargs):
         return (
@@ -426,6 +473,11 @@ class Plotter:
         X = self.ax.bar(*args, **kwargs)
         self.outputs.append(X)
         return self
+
+    def barh(self, *args, **kwargs):
+            X = self.ax.barh(*args, **kwargs)
+            self.outputs.append(X)
+            return self
 
     def quiver(self, *args, **kwargs):
         X = self.ax.quiver(*args, **kwargs)
@@ -670,6 +722,23 @@ class Plotter:
         X = f(*args, **kwargs)
         self.outputs.append(X)
         return self
+
+    def do(self, f: str, *args, **kwargs):
+        X = getattr(self, f)(*args, **kwargs)
+        self.outputs.append(X)
+        return self
+
+    def __getattr__(self, f):
+        if f in dir(self.ax):
+            return getattr(self.ax, f)
+        elif f in dir(self.fig):
+            return getattr(self.fig, f)
+        elif f in dir(self.im):
+            return getattr(self.im, f)
+        elif f in dir(self.cbar):
+            return getattr(self.cbar, f)
+        else:
+            raise AttributeError
 
 class FigSize:
     def __init__(self, wh):

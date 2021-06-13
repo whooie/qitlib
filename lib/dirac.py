@@ -1194,7 +1194,7 @@ class FuncOperator:
     def relabeled(self, label_func):
         return FuncOperator(lambda s: self.action(s).relabeled(label_func))
 
-def _gen_bloch_sphere(pole_labels: list[str, str]) -> pd.Plotter:
+def _gen_bloch_sphere(labels: list[str, str], is_ket: bool=True) -> pd.Plotter:
     th = np.linspace(0, np.pi, 50)
     ph = np.linspace(0, 2 * np.pi, 50)
     TH, PH = np.meshgrid(th, ph)
@@ -1202,7 +1202,10 @@ def _gen_bloch_sphere(pole_labels: list[str, str]) -> pd.Plotter:
     Y = np.sin(TH) * np.sin(PH)
     Z = np.cos(TH)
 
-    P = pd.Plotter.new_3d() \
+    my_labels = [f"$\\left| {l} \\right\\rangle$" if is_ket
+        else f"$\\left\\langle {l} \\right|$" for l in labels]
+
+    P = pd.Plotter.new_3d(figsize=(2.25, 1.8)) \
         .plot_surface(X, Y, Z, alpha=0.25, color="#f0f0f0") \
         .plot(np.cos(ph), np.sin(ph), np.zeros(ph.shape),
             color="#e8e8e8", linewidth=0.5) \
@@ -1222,20 +1225,20 @@ def _gen_bloch_sphere(pole_labels: list[str, str]) -> pd.Plotter:
         .scatter([0], [0], [1], color="#e0e0e0", s=0.5) \
         .set_box_aspect((1, 1, 1)) \
         .axis("off") \
-        .text(0, 0, +1.1, pole_labels[0],
+        .text(0, 0, +1.1, my_labels[0],
             horizontalalignment="center",
             verticalalignment="bottom",
             fontsize="x-small"
         ) \
-        .text(0, 0, -1.1, pole_labels[1],
+        .text(0, 0, -1.1, my_labels[1],
             horizontalalignment="center",
             verticalalignment="top",
             fontsize="x-small"
         )
     return P
 
-def _draw_bloch(alpha: complex, beta: complex, is_ket: bool, P: pd.Plotter) \
-        -> pd.Plotter:
+def _draw_bloch(alpha: complex, beta: complex, labels: list[str, str],
+        P: pd.Plotter) -> pd.Plotter:
     N = np.sqrt(abs(alpha)**2 + abs(beta)**2)
     alpha_ = alpha / N
     beta_ = beta / N
@@ -1245,10 +1248,11 @@ def _draw_bloch(alpha: complex, beta: complex, is_ket: bool, P: pd.Plotter) \
     theta = 2 * np.arccos(abs(alpha_))
     R = min(1, N)
 
-    _draw_bloch_state(R, theta, phi, P)
+    _draw_bloch_state(R, theta, phi, labels, P)
     return P
 
-def _draw_bloch_state(R: float, theta: float, phi: float, P: pd.Plotter):
+def _draw_bloch_state(R: float, theta: float, phi: float,
+        labels: list[str, str], P: pd.Plotter):
     x = R * np.sin(theta) * np.cos(phi)
     y = R * np.sin(theta) * np.sin(phi)
     z = R * np.cos(theta)
@@ -1261,63 +1265,241 @@ def _draw_bloch_state(R: float, theta: float, phi: float, P: pd.Plotter):
             capstyle="round"
         ) \
         .scatter([x], [y], [z], color="C0", s=1)
+    a = np.cos(theta / 2)
+    b = np.sin(theta / 2)
+    X = P.fig.text(0.5, 0.9,
+        f"${a:.2f} \\left|{labels[0]}\\right\\rangle \
+            {b:+0.2f} e^{{{phi / np.pi:+0.2f} \\pi i}} \\left|{labels[1]}\\right\\rangle$",
+        horizontalalignment="center",
+        fontsize="xx-small"
+    )
+    P.outputs.append(X)
 
-def draw_bloch_interactive(pole_labels: list[str, str]):
-    P = _gen_bloch_sphere(pole_labels)
-    P.fig.subplots_adjust(bottom=0.35)
-
+def _gen_theta_slider(P: pd.Plotter):
     theta_slider_ax = P.fig.add_axes(
-        [0.25, 0.12, 0.4, 0.02],
+        [0.25, 0.12, 0.375, 0.02],
         facecolor="#e0e0e0"
     )
-    theta_slider = wig.Slider(
-        theta_slider_ax,
+    theta_slider = wig.Slider(theta_slider_ax,
         label="$\\theta$",
-        valmin=0,
-        valmax=1,
-        valinit=0,
+        valmin=0, valmax=1, valinit=0,
         valfmt="$%+.2f \\pi$"
     )
     theta_slider.label.set_fontsize("x-small")
     theta_slider.valtext.set_fontsize("x-small")
+    return theta_slider
+
+def _gen_phi_slider(P: pd.Plotter):
     phi_slider_ax = P.fig.add_axes(
-        [0.25, 0.05, 0.4, 0.02],
+        [0.25, 0.05, 0.375, 0.02],
         facecolor="#e0e0e0"
     )
-    phi_slider = wig.Slider(
-        phi_slider_ax,
+    phi_slider = wig.Slider(phi_slider_ax,
         label="$\\varphi$",
-        valmin=-2,
-        valmax=+2,
-        valinit=0,
+        valmin=-2, valmax=+2, valinit=0,
         valfmt="$%+.2f \\pi$"
     )
     phi_slider.label.set_fontsize("x-small")
     phi_slider.valtext.set_fontsize("x-small")
-    _draw_bloch_state(1.0, 0.0, 0.0, P)
+    return phi_slider
+
+def _gen_reset_button(P: pd.Plotter):
+    reset_button_ax = P.fig.add_axes([0.0333, 0.9, 0.15, 0.0667])
+    reset_button = wig.Button(reset_button_ax, "Reset",
+        color="white", hovercolor="#e0e0e0"
+    )
+    reset_button.label.set_fontsize("xx-small")
+    return reset_button
+
+def draw_bloch_interactive(labels: list[str, str]):
+    P = _gen_bloch_sphere(labels, is_ket=True)
+    P.fig.subplots_adjust(bottom=0.35)
+
+    theta_slider = _gen_theta_slider(P)
+    phi_slider = _gen_phi_slider(P)
+    _draw_bloch_state(1.0, 0.0, 0.0, labels, P)
     def sliders_on_changed(val):
         P.outputs.pop().remove()
         P.outputs.pop().remove()
-        _draw_bloch_state(
-            1.0,
-            theta_slider.val * np.pi,
-            phi_slider.val * np.pi,
-            P
-        )
+        P.outputs.pop().remove()
+        theta = theta_slider.val * np.pi
+        phi = phi_slider.val * np.pi
+        a = np.cos(theta / 2)
+        b = np.sin(theta / 2)
+        _draw_bloch_state(1.0, theta, phi, labels, P)
         P.fig.canvas.draw_idle()
     theta_slider.on_changed(sliders_on_changed)
     phi_slider.on_changed(sliders_on_changed)
 
-    reset_button_ax = P.fig.add_axes([0.25, 0.9, 0.1618*2/3, 0.1*2/3])
-    reset_button = wig.Button(reset_button_ax, "Reset",
-        color="white", hovercolor="#e0e0e0")
-    reset_button.label.set_fontsize("xx-small")
+    reset_button = _gen_reset_button(P)
     def reset_button_on_clicked(mouse_event):
         theta_slider.reset()
         phi_slider.reset()
     reset_button.on_clicked(reset_button_on_clicked)
     P.show()
 
-def draw_state_interactive(pole_labels: list[str, str]):
-    draw_bloch_interactive(pole_labels)
+def _gen_projection_toggle(P: pd.Plotter):
+    projection_toggle_ax = P.fig.add_axes([0.0333, 0.8, 0.15, 0.0667])
+    projection_toggle = wig.Button(projection_toggle_ax, "Project",
+        color="white", hovercolor="#e0e0e0"
+    )
+    projection_toggle.label.set_fontsize("xx-small")
+    return projection_toggle
+
+def _gen_measure_buttons(P: pd.Plotter):
+    buttons = list()
+    for i in range(3):
+        ax = P.fig.add_axes([0.0333 + 0.05 * i, 0.7, 0.05, 0.0667])
+        button = wig.Button(ax, "XYZ"[i],
+            color="white", hovercolor="#e0e0e0")
+        button.label.set_fontsize("xx-small")
+        buttons.append(button)
+    return buttons
+
+def draw_bloch_interactive_measure(labels: list[str, str]):
+    P = _gen_bloch_sphere(labels)
+    P.fig.subplots_adjust(bottom=0.35)
+
+    theta_slider = _gen_theta_slider(P)
+    phi_slider = _gen_phi_slider(P)
+    _draw_bloch_state(1.0, 0.0, 0.0, labels, P)
+    def sliders_on_changed(val):
+        P.outputs.pop().remove()
+        P.outputs.pop().remove()
+        P.outputs.pop().remove()
+        theta = theta_slider.val * np.pi
+        phi = phi_slider.val * np.pi
+        a = np.cos(theta / 2)
+        b = np.sin(theta / 2)
+        _draw_bloch_state(1.0, theta, phi, labels, P)
+        P.fig.canvas.draw_idle()
+    theta_slider.on_changed(sliders_on_changed)
+    phi_slider.on_changed(sliders_on_changed)
+
+    reset_button = _gen_reset_button(P)
+    def reset_button_on_clicked(mouse_event):
+        theta_slider.reset()
+        phi_slider.reset()
+        data[:, :] = 0.0
+        for i in range(3):
+            Pm[i].outputs.pop().remove()
+            Pm[i].outputs.pop().remove()
+            Pm[i].barh([0, 1], [0.0, 0.0],
+                height=0.6, linewidth=0.7, color=f"C{c[i]}", edgecolor="k",
+                zorder=3)
+            Pm[i].errorbar([0.0, 0.0], [0, 1], xerr=[0.0, 0.0],
+                linestyle="", color="k",
+                zorder=4)
+        Pm.fig.canvas.draw_idle()
+    reset_button.on_clicked(reset_button_on_clicked)
+
+    global do_projection
+    do_projection = False
+    projection_toggle = _gen_projection_toggle(P)
+    def projection_button_on_clicked(mouse_event):
+        global do_projection
+        do_projection = not do_projection
+        if do_projection:
+            projection_toggle.color="C0"
+            projection_toggle.hovercolor="#1c6ba2"
+        else:
+            projection_toggle.color="white"
+            projection_toggle.hovercolor="#e0e0e0"
+        P.fig.canvas.draw_idle()
+    projection_toggle.on_clicked(projection_button_on_clicked)
+
+    c = [0, 1, 3]
+    Pm = pd.Plotter.new(figsize=(1.25, 1.8), nrows=3, sharex=True)
+    for i in range(3):
+        Pm[i].set_ylabel("XYZ"[i], fontsize="small")
+        Pm[i].ggrid()
+        Pm[i].grid(False, axis="y", which="minor")
+        Pm[i].tick_params(labelsize="x-small")
+        Pm[i].set_ylim(-0.5, 1.5)
+        Pm[i].set_yticks([0, 1])
+        Pm[i].set_yticklabels(["0", "1"])
+    Pm[2].set_xlabel("Probability", fontsize="small")
+    Pm[2].set_xlim(0, 1.1)
+    Pm.tight_layout(pad=0.1, h_pad=0.1, w_pad=0)
+    for i in range(3):
+        Pm[i].barh([0, 1], [0.0, 0.0],
+            height=0.6, linewidth=0.7, color=f"C{c[i]}", edgecolor="k",
+            zorder=3)
+        Pm[i].errorbar([0.0, 0.0], [0, 1], xerr=[0.0, 0.0],
+            linestyle="", color="k", zorder=4)
+    data = np.zeros((3, 3))
+
+    measure_x, measure_y, measure_z = _gen_measure_buttons(P)
+    def do_measure_x(mouse_event):
+        global do_projection
+        theta = theta_slider.val * np.pi
+        phi = phi_slider.val * np.pi
+        p0 = (1 + np.sin(theta) * np.cos(phi)) / 2
+        B = 1 - int(random.random() < p0)
+        data[0][B] = (data[0][2] * data[0][B] + 1) / (data[0][2] + 1)
+        data[0][1 - B] = data[0][2] * data[0][1 - B] / (data[0][2] + 1)
+        data[0][2] += 1
+        Pm[0].outputs.pop().remove()
+        Pm[0].outputs.pop().remove()
+        Pm[0].barh([0, 1], data[0][:2],
+            height=0.6, linewidth=0.7, color="C0", edgecolor="k", zorder=3)
+        Pm[0].errorbar(data[0][:2], [0, 1],
+            xerr=np.sqrt(data[0][:2]) / data[0][2],
+            color="k", linestyle="", zorder=4)
+        if do_projection:
+            theta_slider.set_val(0.5)
+            phi_slider.set_val(1 if B else 0)
+        Pm.fig.canvas.draw_idle()
+    measure_x.on_clicked(do_measure_x)
+
+    def do_measure_y(mouse_event):
+        global do_projection
+        theta = theta_slider.val * np.pi
+        phi = phi_slider.val * np.pi
+        p0 = (1 + np.sin(theta) * np.sin(phi)) / 2
+        r = random.random()
+        print(r, p0)
+        B = 1 - int(r < p0)
+        print(B)
+        data[1][B] = (data[1][2] * data[1][B] + 1) / (data[1][2] + 1)
+        data[1][1 - B] = data[1][2] * data[1][1 - B] / (data[1][2] + 1)
+        data[1][2] += 1
+        Pm[1].outputs.pop().remove()
+        Pm[1].outputs.pop().remove()
+        Pm[1].barh([0, 1], data[1][:2],
+            height=0.6, linewidth=0.7, color="C1", edgecolor="k", zorder=3)
+        Pm[1].errorbar(data[1][:2], [0, 1],
+            xerr=np.sqrt(data[1][:2]) / data[1][2],
+            color="k", linestyle="", zorder=4)
+        if do_projection:
+            theta_slider.set_val(0.5)
+            phi_slider.set_val(-0.5 if B else 0.5)
+        Pm.fig.canvas.draw_idle()
+    measure_y.on_clicked(do_measure_y)
+
+    def do_measure_z(mouse_event):
+        global do_projection
+        theta = theta_slider.val * np.pi
+        phi = phi_slider.val * np.pi
+        p0 = np.cos(theta / 2)**2
+        B = 1 - int(random.random() < p0)
+        data[2][B] = (data[2][2] * data[2][B] + 1) / (data[2][2] + 1)
+        data[2][1 - B] = data[2][2] * data[2][1 - B] / (data[2][2] + 1)
+        data[2][2] += 1
+        Pm[2].outputs.pop().remove()
+        Pm[2].outputs.pop().remove()
+        Pm[2].barh([0, 1], data[2][:2],
+            height=0.6, linewidth=0.7, color="C3", edgecolor="k", zorder=3)
+        Pm[2].errorbar(data[2][:2], [0, 1],
+            xerr=np.sqrt(data[2][:2]) / data[2][2],
+            color="k", linestyle="", zorder=4)
+        if do_projection:
+            theta_slider.set_val(B)
+        Pm.fig.canvas.draw_idle()
+    measure_z.on_clicked(do_measure_z)
+
+    pp.show()
+
+def draw_state_interactive(labels: list[str, str]):
+    draw_bloch_interactive(labels)
 
