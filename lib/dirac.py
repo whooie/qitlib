@@ -1458,9 +1458,7 @@ def draw_bloch_interactive_measure(labels: list[str, str]):
         phi = phi_slider.val * np.pi
         p0 = (1 + np.sin(theta) * np.sin(phi)) / 2
         r = random.random()
-        print(r, p0)
         B = 1 - int(r < p0)
-        print(B)
         data[1][B] = (data[1][2] * data[1][B] + 1) / (data[1][2] + 1)
         data[1][1 - B] = data[1][2] * data[1][1 - B] / (data[1][2] + 1)
         data[1][2] += 1
