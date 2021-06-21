@@ -28,7 +28,7 @@ def int_to_bitstr(k: int, n: int=None):
     _n = len(b) if n is None or n < 0 else n
     return ((_n - len(b)) * "0" + b)[-_n:]
 
-def i2b(k: int, n: int):
+def i2b(k: int, n: int=None):
     return int_to_bitstr(k, n)
 
 def bitstr_to_int(B: str):
